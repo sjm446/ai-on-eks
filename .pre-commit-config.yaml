@@ -42,6 +42,6 @@ repos:
       - id: trufflehog
         name: TruffleHog
         description: Detect secrets in your data.
-        entry: bash -c 'trufflehog git file://. --since-commit HEAD --fail --no-update'
+        entry: bash -c 'trufflehog git file://. --since-commit HEAD --branch $(git rev-parse --abbrev-ref HEAD) --fail --no-update'
         language: system
         stages: ["pre-commit", "pre-push"]

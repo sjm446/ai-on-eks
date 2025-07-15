@@ -172,6 +172,27 @@ variable "enable_mpi_operator" {
 }
 
 # ArgoCD Addons
+# Flag to enable AIBrix stack
+variable "enable_aibrix_stack" {
+  description = "Enable AIBrix addon"
+  type        = bool
+  default     = false
+}
+
+# AIBrix version
+variable "aibrix_stack_version" {
+  description = "AIBrix default version"
+  type        = string
+  default     = "v0.2.1"
+}
+
+variable "enabled_leader_worker_set" {
+  description = "Flag to enable the LeaderWorkerSet"
+  type        = bool
+  default     = false
+
+}
+
 variable "enable_nvidia_nim_stack" {
   description = "Flag to enable the NVIDIA NIM Stack addon"
   type        = bool
@@ -244,18 +265,4 @@ variable "kms_key_admin_roles" {
   description = "list of role ARNs to add to the KMS policy"
   type        = list(string)
   default     = []
-}
-
-# Flag to enable AIBrix stack
-variable "enable_aibrix_stack" {
-  description = "Enable AIBrix addon"
-  type        = bool
-  default     = false
-}
-
-# AIBrix version
-variable "aibrix_stack_version" {
-  description = "AIBrix default version"
-  type        = string
-  default     = "v0.2.1"
 }
