@@ -133,7 +133,7 @@ The infrastructure automatically provides:
 
 ### Supported Inference Patterns
 
-The cluster supports all inference patterns provided by the [inference charts]():
+The cluster supports all inference patterns provided by the inference charts:
 
 #### vLLM Deployments
 - Direct vLLM deployment using Kubernetes Deployment
