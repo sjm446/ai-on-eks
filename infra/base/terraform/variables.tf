@@ -186,7 +186,7 @@ variable "aibrix_stack_version" {
   default     = "v0.2.1"
 }
 
-variable "enabled_leader_worker_set" {
+variable "enable_leader_worker_set" {
   description = "Flag to enable the LeaderWorkerSet"
   type        = bool
   default     = false

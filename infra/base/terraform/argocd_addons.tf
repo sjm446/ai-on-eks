@@ -26,7 +26,7 @@ resource "kubectl_manifest" "aibrix_core_yaml" {
 }
 
 resource "kubectl_manifest" "lws_yaml" {
-  count     = var.enabled_leader_worker_set ? 1 : 0
+  count     = var.enable_leader_worker_set ? 1 : 0
   yaml_body = file("${path.module}/argocd-addons/leader-worker-set.yaml")
 
   depends_on = [
