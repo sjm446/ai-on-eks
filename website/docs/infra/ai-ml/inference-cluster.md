@@ -17,7 +17,7 @@ This infrastructure blueprint creates an Amazon EKS cluster optimized for AI/ML 
 - **GPU/Neuron Support**: Ready for both NVIDIA GPU and AWS Neuron (Inferentia/Trainium) workloads
 - **Autoscaling**: Karpenter-based node autoscaling for cost optimization
 
-The cluster is specifically designed to work seamlessly with the [AI on EKS Inference Charts](../../blueprints/inference/inference-charts.md), providing a complete end-to-end solution for deploying inference workloads.
+The cluster is specifically designed to work seamlessly with the AI on EKS Inference Charts, providing a complete end-to-end solution for deploying inference workloads.
 
 ## Resources
 
