@@ -13,6 +13,7 @@ This infrastructure blueprint creates an Amazon EKS cluster optimized for AI/ML 
 - **KubeRay Operator**: Enables distributed Ray workloads for scalable inference
 - **AI/ML Observability Stack**: Comprehensive monitoring and observability for ML workloads
 - **AIBrix Stack**: Advanced inference optimization and management capabilities
+- **LeaderWorkerSet**: Enables multi-node distributed inference
 - **GPU/Neuron Support**: Ready for both NVIDIA GPU and AWS Neuron (Inferentia/Trainium) workloads
 - **Autoscaling**: Karpenter-based node autoscaling for cost optimization
 
@@ -125,7 +126,7 @@ This infrastructure is specifically designed to work with the AI on EKS Inferenc
 
 The infrastructure automatically provides:
 
-1. **KubeRay Operator** - Required for Ray-VLLM deployments
+1. **KubeRay Operator** - Required for Ray-vLLM deployments
 2. **GPU/Neuron Device Plugins** - For hardware resource management
 3. **Observability Stack** - Prometheus and Grafana for monitoring
 4. **AIBrix Integration** - For inference optimization and management
@@ -134,13 +135,13 @@ The infrastructure automatically provides:
 
 The cluster supports all inference patterns provided by the [inference charts]():
 
-#### VLLM Deployments
-- Direct VLLM deployment using Kubernetes Deployment
+#### vLLM Deployments
+- Direct vLLM deployment using Kubernetes Deployment
 - Suitable for single-node inference workloads
 - Supports both GPU and Neuron accelerators
 
-#### Ray-VLLM Deployments
-- Distributed VLLM on Ray Serve
+#### Ray-vLLM Deployments
+- Distributed vLLM on Ray Serve
 - Automatic scaling based on workload demand
 - Advanced observability with Prometheus/Grafana integration
 - Topology-aware scheduling for optimal performance
@@ -161,11 +162,11 @@ cd ../../../blueprints/inference/inference-charts
 # Create Hugging Face token secret
 kubectl create secret generic hf-token --from-literal=token=your_hf_token
 
-# Deploy GPU Ray-VLLM with Llama model
+# Deploy GPU Ray-vLLM with Llama model
 helm install llama-inference . \
   --values values-llama-32-1b-ray-vllm.yaml
 
-# Deploy Neuron VLLM with optimized model
+# Deploy Neuron vLLM with optimized model
 helm install neuron-inference . \
   --values values-llama-31-8b-vllm-neuron.yaml
 ```
@@ -175,7 +176,7 @@ helm install neuron-inference . \
 The infrastructure provides comprehensive observability for inference workloads:
 
 - **Prometheus Metrics**: Automatic collection of inference metrics
-- **Grafana Dashboards**: Pre-configured dashboards for Ray and VLLM
+- **Grafana Dashboards**: Pre-configured dashboards for Ray and vLLM
 - **Log Aggregation**: Centralized logging with Fluent Bit
 - **GPU/Neuron Monitoring**: Hardware utilization metrics
 
