@@ -190,7 +190,6 @@ variable "enable_leader_worker_set" {
   description = "Flag to enable the LeaderWorkerSet"
   type        = bool
   default     = false
-
 }
 
 variable "enable_nvidia_nim_stack" {
