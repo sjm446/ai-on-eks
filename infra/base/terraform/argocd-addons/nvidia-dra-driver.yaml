@@ -10,11 +10,10 @@ spec:
   source:
     repoURL: https://helm.ngc.nvidia.com/nvidia
     chart: nvidia-dra-driver-gpu
-    targetRevision: "25.3.0-rc.2"
+    targetRevision: "25.3.0-rc.4"
     helm:
       values: |
         nvidiaDriverRoot: /
-        nvidiaCtkPath: /usr/bin/nvidia-ctk
         gpuResourcesEnabledOverride: true # Required to deploy GPU and MIG deviceclasses
 
         resources:

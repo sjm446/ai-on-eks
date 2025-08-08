@@ -130,18 +130,18 @@ helm install llama3-70b-neuron ./blueprints/inference/inference-charts \
 
 The chart provides extensive configuration options. Here are the most important parameters:
 
-| Parameter                                   | Description                          | Default                     |
-|---------------------------------------------|--------------------------------------|-----------------------------|
-| `inference.accelerator`                     | Accelerator type (`gpu` or `neuron`) | `gpu`                       |
-| `inference.framework`                       | Framework type (`vllm` or `rayVllm`) | `vllm`                      |
-| `inference.serviceName`                     | Name of the inference service        | `inference`                 |
-| `inference.modelServer.deployment.replicas` | Number of replicas                   | `1`                         |
-| `modelParameters.modelId`                   | Model ID from Hugging Face Hub       | `NousResearch/Llama-3.2-1B` |
-| `modelParameters.gpuMemoryUtilization`      | GPU memory utilization               | `0.8`                       |
-| `modelParameters.maxModelLen`               | Maximum model sequence length        | `8192`                      |
-| `modelParameters.tensorParallelSize`        | Tensor parallel size                 | `1`                         |
-| `service.type`                              | Service type                         | `ClusterIP`                 |
-| `service.port`                              | Service port                         | `8000`                      |
+| Parameter                                   | Description                           | Default                     |
+|---------------------------------------------|---------------------------------------|-----------------------------|
+| `inference.accelerator`                     | Accelerator type (`gpu` or `neuron`)  | `gpu`                       |
+| `inference.framework`                       | Framework type (`vllm` or `ray-vllm`) | `vllm`                      |
+| `inference.serviceName`                     | Name of the inference service         | `inference`                 |
+| `inference.modelServer.deployment.replicas` | Number of replicas                    | `1`                         |
+| `modelParameters.modelId`                   | Model ID from Hugging Face Hub        | `NousResearch/Llama-3.2-1B` |
+| `modelParameters.gpuMemoryUtilization`      | GPU memory utilization                | `0.8`                       |
+| `modelParameters.maxModelLen`               | Maximum model sequence length         | `8192`                      |
+| `modelParameters.tensorParallelSize`        | Tensor parallel size                  | `1`                         |
+| `service.type`                              | Service type                          | `ClusterIP`                 |
+| `service.port`                              | Service port                          | `8000`                      |
 
 ### Custom Deployment
 
@@ -150,7 +150,7 @@ Create your own values file for custom configurations:
 ```yaml
 inference:
   accelerator: gpu  # or neuron
-  framework: vllm   # or rayVllm
+  framework: vllm   # or ray-vllm
   serviceName: custom-inference
   modelServer:
     deployment:

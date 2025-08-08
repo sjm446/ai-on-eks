@@ -1,0 +1,74 @@
+/* Status Badges */
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 2px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-surface-color);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.statusBadge:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-color: var(--ifm-color-primary);
+}
+
+.statusBadgeBeta {
+  border-left: 4px solid #f39c12;
+}
+
+.statusBadgeProduction {
+  border-left: 4px solid #27ae60;
+}
+
+.statusBadgeWarning {
+  border-left: 4px solid #e67e22;
+}
+
+.statusBadgeInfo {
+  border-left: 4px solid #3498db;
+}
+
+.badgeIcon {
+  font-size: 1.5rem;
+  margin-right: 0.75rem;
+}
+
+.badgeContent {
+  flex: 1;
+}
+
+.badgeTitle {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ifm-color-content);
+  margin-bottom: 0.25rem;
+}
+
+.badgeValue {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.25rem;
+}
+
+.badgeNote {
+  font-size: 0.8rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+@media (max-width: 768px) {
+  .statusGrid {
+    grid-template-columns: 1fr;
+  }
+}

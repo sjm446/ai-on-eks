@@ -20,12 +20,12 @@ Configuring the VPC CNI to minimize this warm pool can increase the EC2 API call
 If you are working with a network that spans multiple connected VPCs or sites the routable address space may be limited.
 For example, your VPC may be limited to small subnets like below. In this VPC we wouldn’t be able to run more than one `m5.16xlarge` node without adjusting the CNI configuration.
 
-![Init VPC](init-vpc.png)
+![Init VPC](./img/init-vpc.png)
 
 You can add additional VPC CIDRs from a range that is not routable across VPCs (such as the RFC 6598 range, `100.64.0.0/10`). In this case we added `100.64.0.0/16`, `100.65.0.0/16`, and `100.66.0.0/16` to the VPC (as this is the maximum CIDR size), then created new subnets with those CIDRs.
 Finally we recreated the node groups in the new subnets, leaving the existing EKS cluster control plane in place.
 
-![expanded VPC](expanded-vpc.png)
+![expanded VPC](./img/expanded-vpc.png)
 
 With this configuration you can still communicate with the EKS cluster control plane from connected VPCs but your nodes and pods have plenty of IP addresses to accommodate your workloads and the warm pool.
 

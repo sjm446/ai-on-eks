@@ -43,9 +43,21 @@ const config = {
     ],
   ],
 
+  themes: ['@docusaurus/theme-mermaid'],
+
+  markdown: {
+    mermaid: true,
+  },
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      mermaid: {
+        theme: { light: 'neutral', dark: 'forest' },
+        options: {
+          maxTextSize: 50000,
+        },
+      },
       navbar: {
         // title: 'AIoEKS',
         logo: {
@@ -55,8 +67,8 @@ const config = {
         items: [
           { type: 'doc', docId: 'infra/ai-ml/index', position: 'left', label: 'Infrastructure' },
           { type: 'doc', docId: 'blueprints/index', position: 'left', label: 'Blueprints' },
-          { type: 'doc', docId: 'bestpractices/intro', position: 'left', label: 'Best Practices' },
           { type: 'doc', docId: 'resources/intro', position: 'left', label: 'Resources' },
+          { type: 'doc', docId: 'guidance/index', position: 'left', label: 'Guidance' },
           { href: 'https://github.com/awslabs/ai-on-eks', label: 'GitHub', position: 'right' },
         ],
       },
@@ -84,6 +96,7 @@ const config = {
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
+        additionalLanguages: ['bash', 'yaml', 'hcl', 'json', 'python', 'javascript', 'typescript', 'jsx', 'tsx'],
       },
     }),
 

@@ -8,9 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://nvidia.github.io/gpu-operator
+    repoURL: https://helm.ngc.nvidia.com/nvidia
     chart: gpu-operator
-    targetRevision: "v24.9.2"
+    targetRevision: "v25.3.1"
     helm:
       values: |
         # Disable driver installation since EKS AMI already has drivers
@@ -40,6 +40,7 @@ spec:
                       mig-enabled: false
 
                   # P4D profiles (A100 40GB)
+                  # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html#a100-mig-profiles
                   p4d-half-balanced:
                     - devices: [0, 1, 2, 3]
                       mig-enabled: true
@@ -79,6 +80,7 @@ spec:
                       mig-enabled: false
 
                   # P4DE profiles (A100 80GB)
+                  # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html#a100-mig-profiles
                   p4de-half-balanced:
                     - devices: [0, 1, 2, 3]
                       mig-enabled: true
@@ -132,6 +134,7 @@ spec:
                       mig-enabled: false
 
                   # P5 profiles (H100 80GB)
+                  # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html#h100-mig-profiles
                   p5-half-balanced:
                     - devices: [0, 1, 2, 3]
                       mig-enabled: true
@@ -157,6 +160,33 @@ spec:
                     - devices: [6, 7]
                       mig-enabled: false
 
+                  # P6 profiles (B200 180GB)
+                  # https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html#h200-mig-profiles
+                  p6-b200-half-balanced:
+                    - devices: [0, 1, 2, 3]
+                      mig-enabled: true
+                      mig-devices:
+                        "1g.23gb": 1
+                        "2g.45gb": 1
+                        "4g.90gb": 1
+                    - devices: [4, 5, 6, 7]
+                      mig-enabled: false
+
+                  p6-b200-all-small:
+                    - devices: all
+                      mig-enabled: true
+                      mig-devices:
+                        "1g.23gb": 7
+
+                  p6-b200-inference-optimized:
+                    - devices: [0, 1, 2, 3, 4, 5]
+                      mig-enabled: true
+                      mig-devices:
+                        "1g.23gb": 5
+                        "2g.40gb": 1
+                    - devices: [6, 7]
+                      mig-enabled: false
+
         # Device plugin configuration
         devicePlugin:
           enabled: true
@@ -165,9 +195,9 @@ spec:
             create: false
             default: ""
 
-        # Enable other components
+        # EKS AMIs come with the container toolkit installed
         toolkit:
-          enabled: true
+          enabled: false
 
         # Node feature discovery
         nfd:

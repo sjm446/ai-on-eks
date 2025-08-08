@@ -1,0 +1,110 @@
+# Inter-pod anti-affinity and node affinity for non-compute components
+commonAffinity: &commonAffinity
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+          - key: "node.kubernetes.io/instance-type"
+            operator: In
+            values:
+              - "m5.xlarge"
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: "app.kubernetes.io/name"
+            operator: In
+            values: ["slurmdbd", "slurmctld", "slurm-exporter", "login", "mariadb", "slurmrestd"]
+        topologyKey: "kubernetes.io/hostname"
+
+
+# Slurm controller (slurmctld) configurations.
+controller:
+  affinity: *commonAffinity
+  persistence:
+    storageClass: gp3
+
+# Slurm accounting (slurmdbd) configurations.
+accounting:
+  affinity: *commonAffinity
+
+# `bitnami/mariadb` subchart configurations.
+mariadb:
+  primary:
+    affinity: *commonAffinity
+    persistence:
+      storageClass: gp3
+
+# Slurm REST API (slurmrestd) configurations.
+restapi:
+  affinity: *commonAffinity
+
+# `slurm-exporter` subchart configurations.
+slurm-exporter:
+  exporter:
+    affinity: *commonAffinity
+
+# Login node configurations.
+login:
+  enabled: true
+  replicas: 1
+  service:
+    type: LoadBalancer
+  servicePort: 22
+  rootSshAuthorizedKeys:
+    - ${ssh_key}
+  sshdConfig:
+    AuthorizedKeysFile: "/root/.ssh/authorized_keys"
+    ChallengeResponseAuthentication: "no"
+    PasswordAuthentication: "no"
+    PubkeyAuthentication: "yes"
+    PermitRootLogin: "yes"
+    Port: "22"
+  extraVolumeMounts:
+    - name: fsx-lustre
+      mountPath: /fsx
+  extraVolumes:
+     - name: fsx-lustre
+       persistentVolumeClaim:
+        claimName: fsx-static-pvc
+  affinity: *commonAffinity
+
+# Slurm compute (slurmd) configurations.
+compute:
+  nodesets:
+    - name: node
+      enabled: true
+      replicas: 4
+      image:
+        repository: ${image_repository}
+        tag: ${image_tag}
+      nodeSelector:
+        instanceType: g5-gpu-karpenter
+        kubernetes.io/os: linux
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      resources:
+        limits:
+          nvidia.com/gpu: "1"
+          vpc.amazonaws.com/efa: 1
+        requests:
+          nvidia.com/gpu: "1"
+          vpc.amazonaws.com/efa: 1
+      extraVolumeMounts:
+        - name: fsx-lustre
+          mountPath: /fsx
+        - name: shmem
+          mountPath: /dev/shm
+      extraVolumes:
+        - name: fsx-lustre
+          persistentVolumeClaim:
+            claimName: fsx-static-pvc
+        - name: shmem
+          hostPath:
+            path: /dev/shm
+      partition:
+        enabled: true
