@@ -16,11 +16,33 @@ variable "eks_cluster_version" {
   type        = string
 }
 
-# VPC with 2046 IPs (10.1.0.0/21) and 2 AZs
-variable "vpc_cidr" {
-  description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range"
-  default     = "10.1.0.0/21"
+variable "capacity_block_reservation_id" {
+  description = "ID of capacity block reservation"
+  default     = ""
   type        = string
+}
+
+# VPC with configurable AZs - CIDR size should match AZ count
+variable "vpc_cidr" {
+  description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range. Recommended: /21 for 2 AZs, /20 for 3 AZs, /19 for 4 AZs. If the network prefix is not provided, it will be computed"
+  default     = "10.1.0.0"
+  type        = string
+}
+
+variable "availability_zones_count" {
+  description = "Number of availability zones to use for the deployment"
+  type        = number
+  default     = 2
+  validation {
+    condition     = var.availability_zones_count >= 2 && var.availability_zones_count <= 4
+    error_message = "The availability_zones_count must be between 2 and 4."
+  }
+}
+
+variable "single_nat_gateway" {
+  description = "Use a single NAT Gateway for all AZs (cost-effective for dev/test). Set to false for production to use one NAT Gateway per AZ for high availability."
+  type        = bool
+  default     = true
 }
 
 # RFC6598 range 100.64.0.0/10
