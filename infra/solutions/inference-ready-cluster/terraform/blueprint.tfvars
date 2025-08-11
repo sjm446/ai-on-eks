@@ -3,7 +3,9 @@ enable_kuberay_operator          = true
 enable_ai_ml_observability_stack = true
 enable_aibrix_stack              = true
 enable_leader_worker_set         = true
-
+solution_description             = "Guidance for Deploying an Inference ready Amazon EKS Cluster"
+solution_id                      = "SO9615"
+availability_zones_count         = 4
 # region                           = "us-west-2"
 # eks_cluster_version              = "1.32"
 

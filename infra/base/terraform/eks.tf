@@ -2,6 +2,7 @@
 # Amazon EKS Managed Add-ons
 #---------------------------------------
 
+
 locals {
   # Filter secondary CIDR subnets (starting with "100.")
   secondary_cidr_subnets = compact([for subnet_id, cidr_block in zipmap(module.vpc.private_subnets, module.vpc.private_subnets_cidr_blocks) :
