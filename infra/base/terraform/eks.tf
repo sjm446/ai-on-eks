@@ -7,8 +7,6 @@ locals {
   secondary_cidr_subnets = compact([for subnet_id, cidr_block in zipmap(module.vpc.private_subnets, module.vpc.private_subnets_cidr_blocks) :
   substr(cidr_block, 0, 4) == "100." ? subnet_id : null])
 
-  # Ensure we have at least one secondary subnet for CBR node group
-  has_secondary_subnets = length(local.secondary_cidr_subnets) > 0
   base_addons = {
     for name, enabled in var.enable_cluster_addons :
     name => {} if enabled
@@ -206,7 +204,7 @@ module "eks" {
     }
 
 
-    }, local.has_secondary_subnets ? {
+    }, length(var.capacity_block_reservation_id) > 0 ? {
     cbr = {
       ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["p4de.24xlarge"]
@@ -263,18 +261,15 @@ module "eks" {
       #-------------------------------------
       subnet_ids = [local.secondary_cidr_subnets[0]]
 
-      #------------------------------------
-      # TODO - Uncomment the below block and update the capacity reservation ID
-      #------------------------------------
-      # capacity_type = "CAPACITY_BLOCK"
-      # instance_market_options = {
-      #   market_type = "capacity-block"
-      # }
-      # capacity_reservation_specification = {
-      #   capacity_reservation_target = {
-      #     capacity_reservation_id = "cr-abcedefgh" # Replace with your capacity reservation ID
-      #   }
-      # }
+      capacity_type = "CAPACITY_BLOCK"
+      instance_market_options = {
+        market_type = "capacity-block"
+      }
+      capacity_reservation_specification = {
+        capacity_reservation_target = {
+          capacity_reservation_id = var.capacity_block_reservation_id # Replace with your capacity reservation ID
+        }
+      }
     }
   } : {})
 }

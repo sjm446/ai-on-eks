@@ -16,6 +16,12 @@ variable "eks_cluster_version" {
   type        = string
 }
 
+variable "capacity_block_reservation_id" {
+  description = "ID of capacity block reservation"
+  default     = ""
+  type        = string
+}
+
 # VPC with configurable AZs - CIDR size should match AZ count
 variable "vpc_cidr" {
   description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range. Recommended: /21 for 2 AZs, /20 for 3 AZs, /19 for 4 AZs. If the network prefix is not provided, it will be computed"
