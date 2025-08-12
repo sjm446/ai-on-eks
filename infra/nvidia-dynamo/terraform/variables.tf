@@ -12,7 +12,7 @@ variable "region" {
 
 variable "eks_cluster_version" {
   description = "EKS Cluster version"
-  default     = "1.32"
+  default     = "1.33"
   type        = string
 }
 
@@ -108,6 +108,11 @@ variable "deploy_fsx_volume" {
   type        = bool
   default     = false
 }
+variable "fsx_pvc_namespace" {
+  description = "Namespace for FSx PVC"
+  type        = string
+  default     = "default"
+}
 variable "enable_amazon_prometheus" {
   description = "Enable Amazon Prometheus"
   type        = bool
@@ -118,7 +123,7 @@ variable "enable_amazon_emr" {
   type        = bool
   default     = false
 }
-# Addon Variables
+# Addon Variables for ai-on-eks/infra/base/terraform/addons.tf
 variable "enable_kube_prometheus_stack" {
   description = "Enable Kube Prometheus addon"
   type        = bool
@@ -193,9 +198,117 @@ variable "enable_mpi_operator" {
   default     = false
 }
 
-# ArgoCD Addons
+# AWS Load Balancer Controller Variables
+variable "enable_aws_load_balancer_controller" {
+  description = "Enable the AWS Load Balancer Controller"
+  type        = bool
+  default     = true
+}
+
+variable "enable_service_mutator_webhook" {
+  description = "Enable service-mutator webhook for AWS Load Balancer Controller"
+  type        = bool
+  default     = false
+}
+
+# Ingress-Nginx Controller
+variable "enable_ingress_nginx" {
+  description = "Enable ingress-nginx addon"
+  type        = bool
+  default     = true
+}
+
+# ArgoCD Addons for ai-on-eks/infra/base/terraform/argocd_addons.tf
 variable "enable_nvidia_nim_stack" {
   description = "Flag to enable the NVIDIA NIM Stack addon"
+  type        = bool
+  default     = false
+}
+
+# Flag to enable AIBrix stack
+variable "enable_aibrix_stack" {
+  description = "Enable AIBrix addon"
+  type        = bool
+  default     = false
+}
+
+# AIBrix version
+variable "aibrix_stack_version" {
+  description = "AIBrix default version"
+  type        = string
+  default     = "v0.2.1"
+}
+
+# Enable NVIDIA DRA Driver addon
+variable "enable_nvidia_dra_driver" {
+  description = "Enable NVIDIA DRA Driver addon"
+  type        = bool
+  default     = false
+}
+
+variable "enable_nvidia_gpu_operator" {
+  description = <<-EOF
+    Enable NVIDIA GPU Operator
+
+    Components deployed:
+    - Device Plugin (GPU resource scheduling)
+    - DCGM Exporter (GPU metrics and monitoring)
+    - Node Feature Discovery (NFD - hardware labeling)
+    - GPU Feature Discovery (GFD - GPU-specific labeling)
+    - MIG Manager (Multi-Instance GPU partitioning)
+    - Container Toolkit (GPU container runtime)
+    - Operator Controller (lifecycle management)
+
+    Note: Drivers are NOT installed (pre-installed on EKS AMI)
+    Use when: Advanced GPU management, MIG partitioning, comprehensive monitoring
+  EOF
+  type        = bool
+  default     = false
+}
+
+variable "enable_nvidia_device_plugin" {
+  description = <<-EOF
+    Enable standalone NVIDIA Device Plugin chart (only when GPU Operator is disabled)
+
+    Components deployed:
+    - Device Plugin (GPU resource scheduling)
+    - GPU Feature Discovery (GFD - GPU-specific labeling)
+    - Node Feature Discovery (NFD - hardware detection and labeling)
+      └── NFD Garbage Collector
+      └── NFD Topology Updater
+      └── NFD Worker
+
+    Note: Includes labeling and discovery but NO MIG support or advanced management
+    Use when: Need GPU scheduling + node labeling without full operator complexity
+  EOF
+  type        = bool
+  default     = true
+}
+
+variable "enable_nvidia_dcgm_exporter" {
+  description = <<-EOF
+    Enable standalone NVIDIA DCGM Exporter (only when GPU Operator is disabled)
+
+    Components deployed:
+    - DCGM Exporter only (GPU metrics collection for Prometheus)
+
+    Note: Requires Device Plugin for GPU detection
+    Use when: Need GPU monitoring without full GPU Operator
+  EOF
+  type        = bool
+  default     = true
+}
+
+# Cert Manager
+variable "enable_cert_manager" {
+  description = "Enable cert-manager addon"
+  type        = bool
+  default     = false
+}
+
+# Slinky Slurm Operator
+variable "enable_slurm_operator" {
+  description = "Enable slurm-operator addon"
   type        = bool
   default     = false
 }
@@ -266,20 +379,6 @@ variable "kms_key_admin_roles" {
   description = "list of role ARNs to add to the KMS policy"
   type        = list(string)
   default     = []
-}
-
-# Flag to enable AIBrix stack
-variable "enable_aibrix_stack" {
-  description = "Enable AIBrix addon"
-  type        = bool
-  default     = false
-}
-
-# AIBrix version
-variable "aibrix_stack_version" {
-  description = "AIBrix default version"
-  type        = string
-  default     = "v0.2.1"
 }
 
 # Flag to enable Dynamo stack
