@@ -7,7 +7,7 @@ solution_description             = "Guidance for Deploying an Inference ready Am
 solution_id                      = "SO9615"
 availability_zones_count         = 4
 # region                           = "us-west-2"
-# eks_cluster_version              = "1.32"
+# eks_cluster_version              = "1.33"
 
 # -------------------------------------------------------------------------------------
 # EKS Addons Configuration
@@ -21,13 +21,13 @@ availability_zones_count         = 4
 #
 # -------------------------------------------------------------------------------------
 
-# enable_cluster_addons = {
-#   coredns                         = true
-#   kube-proxy                      = true
-#   vpc-cni                         = true
-#   eks-pod-identity-agent          = true
-#   aws-ebs-csi-driver              = true
-#   metrics-server                  = true
-#   eks-node-monitoring-agent       = false
-#   amazon-cloudwatch-observability = true
-# }
+enable_cluster_addons = {
+  coredns                         = true
+  kube-proxy                      = true
+  vpc-cni                         = true
+  eks-pod-identity-agent          = true
+  aws-ebs-csi-driver              = true
+  metrics-server                  = false
+  eks-node-monitoring-agent       = false
+  amazon-cloudwatch-observability = false
+}
