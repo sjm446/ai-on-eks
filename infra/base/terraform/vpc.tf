@@ -1,16 +1,44 @@
 locals {
-  # Routable Private subnets only for Private NAT Gateway -> Transit Gateway -> Second VPC for overlapping CIDRs
-  # e.g., var.vpc_cidr = "10.1.0.0/21" => output: ["10.1.0.0/24", "10.1.1.0/24"] => 256-2 = 254 usable IPs per subnet/AZ
-  private_subnets = [for k, v in local.azs : cidrsubnet(var.vpc_cidr, 3, k)]
-  # Routable Public subnets with NAT Gateway and Internet Gateway
-  # e.g., var.vpc_cidr = "10.1.0.0/21" => output: ["10.1.2.0/26", "10.1.2.64/26"] => 64-2 = 62 usable IPs per subnet/AZ
-  public_subnets = [for k, v in local.azs : cidrsubnet(var.vpc_cidr, 5, k + 8)]
+  # Calculate CIDR range if not specified. Check if var.vpc_cidr has subnet mask, if not add one based on the following table
+  cidr_bits = tomap({
+    4 = "19"
+    3 = "20"
+    2 = "21"
+  })
+  vpc_cidr = strcontains(var.vpc_cidr, "/") ? var.vpc_cidr : format("%s/%s", var.vpc_cidr, local.cidr_bits[var.availability_zones_count])
 
-  database_private_subnets = [for k, v in local.azs : cidrsubnet(var.vpc_cidr, 3, k + 5)]
+  # Calculate subnet sizes based on number of AZs to avoid overlaps
+  # We need to allocate space for: private subnets, public subnets, and database subnets
+  # Strategy: Divide VPC CIDR into equal blocks for each subnet type
 
-  # RFC6598 range 100.64.0.0/16 for EKS Data Plane for two subnets(32768 IPs per Subnet) across two AZs for EKS Control Plane ENI + Nodes + Pods
-  # e.g., var.secondary_cidr_blocks = "100.64.0.0/16" => output: ["100.64.0.0/17", "100.64.128.0/17"] => 32768-2 = 32766 usable IPs per subnet/AZ
-  secondary_ip_range_private_subnets = [for k, v in local.azs : cidrsubnet(element(var.secondary_cidr_blocks, 0), 1, k)]
+  # Calculate the subnet size needed based on AZ count
+  # For 2 AZs: /24 subnets (256 IPs each)
+  # For 3 AZs: /25 subnets (128 IPs each)
+  # For 4 AZs: /26 subnets (64 IPs each)
+  subnet_newbits = var.availability_zones_count == 2 ? 3 : var.availability_zones_count == 3 ? 4 : 5
+
+  # Private subnets: Start from index 0
+  # e.g., 10.1.0.0/21 with 2 AZs => ["10.1.0.0/24", "10.1.1.0/24"]
+  # e.g., 10.1.0.0/20 with 3 AZs => ["10.1.0.0/25", "10.1.0.128/25", "10.1.1.0/25"]
+  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, local.subnet_newbits, k)]
+
+  # Public subnets: Start after private subnets
+  # e.g., 10.1.0.0/21 with 2 AZs => ["10.1.2.0/24", "10.1.3.0/24"]
+  # e.g., 10.1.0.0/20 with 3 AZs => ["10.1.1.128/25", "10.1.2.0/25", "10.1.2.128/25"]
+  public_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, local.subnet_newbits, k + var.availability_zones_count)]
+
+  # Database subnets: Start after public subnets
+  # e.g., 10.1.0.0/21 with 2 AZs => ["10.1.4.0/24", "10.1.5.0/24"]
+  # e.g., 10.1.0.0/20 with 3 AZs => ["10.1.3.0/25", "10.1.3.128/25", "10.1.4.0/25"]
+  database_private_subnets = var.enable_database_subnets ? [for k, v in local.azs : cidrsubnet(local.vpc_cidr, local.subnet_newbits, k + (2 * var.availability_zones_count))] : []
+
+  # RFC6598 range 100.64.0.0/16 for EKS Data Plane subnets across configurable AZs
+  # Divide the secondary CIDR equally among AZs
+  # For 2 AZs: /17 subnets (32768 IPs each)
+  # For 3 AZs: /18 subnets (16384 IPs each)
+  # For 4 AZs: /18 subnets (16384 IPs each) - using only 4 of 4 possible /18 subnets
+  secondary_newbits                  = var.availability_zones_count <= 2 ? 1 : 2
+  secondary_ip_range_private_subnets = [for k, v in local.azs : cidrsubnet(element(var.secondary_cidr_blocks, 0), local.secondary_newbits, k)]
 }
 
 #---------------------------------------------------------------
@@ -21,17 +49,17 @@ locals {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
+  version = "~> 5.21"
 
   name = local.name
-  cidr = var.vpc_cidr
+  cidr = local.vpc_cidr
   azs  = local.azs
 
   # Secondary CIDR block attached to VPC for EKS Control Plane ENI + Nodes + Pods
   secondary_cidr_blocks = var.secondary_cidr_blocks
 
-  # 1/ EKS Data Plane secondary CIDR blocks for two subnets across two AZs for EKS Control Plane ENI + Nodes + Pods
-  # 2/ Two private Subnets with RFC1918 private IPv4 address range for Private NAT + NLB + Airflow + EC2 Jumphost etc.
+  # 1/ EKS Data Plane secondary CIDR blocks for subnets across configurable AZs for EKS Control Plane ENI + Nodes + Pods
+  # 2/ Private Subnets with RFC1918 private IPv4 address range for Private NAT + NLB + Airflow + EC2 Jumphost etc.
   private_subnets = concat(local.private_subnets, local.secondary_ip_range_private_subnets)
 
   # ------------------------------
@@ -45,13 +73,16 @@ module "vpc" {
   # Public Subnets can be disabled while deploying to Production and use Private NAT + TGW
   public_subnets     = local.public_subnets
   enable_nat_gateway = true
-  single_nat_gateway = true
+  single_nat_gateway = var.single_nat_gateway
   #-------------------------------
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
   }
-
+  private_subnet_names = concat(
+    [for k, v in local.azs : "${var.name}-private-${v}"],
+    [for k, v in local.azs : "${var.name}-private-secondary-${v}"]
+  )
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = 1
     # Tags subnets for Karpenter auto-discovery

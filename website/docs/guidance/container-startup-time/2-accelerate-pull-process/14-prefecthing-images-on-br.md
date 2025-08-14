@@ -1,10 +1,8 @@
 ---
-title: Preload container images into data volumes
-sidebar_position: 2
+sidebar_label: Preload container images into data volumes
 ---
-import CollapsibleContent from '../../src/components/CollapsibleContent';
 
-# Preload container images into data volumes with EBS Snapshots
+# Preload container images into Bottlerocket data volumes with EBS Snapshots
 
 The purpose of this pattern is to reduce the cold start time of containers with large images by caching the images in the data volume of Bottlerocket OS.
 
@@ -70,7 +68,7 @@ You can copy the snapshot ID `snap-0c6d965cf431785ed` and configure it as a snap
 
 # Using Snapshot with Amazon EKS and Karpenter
 
-You can specify `snapshotID` in a Karpenter node class. Add the content on EC2NodeClass:
+You can specify `snapshotID` in a Karpenter node class (another option is to use the Infrastructure Blueprints in this repo, and pass the [snapshotID](https://github.com/awslabs/ai-on-eks/blob/main/infra/base/terraform/variables.tf#L64-L68) as part of the IaC configuration). Add the content on EC2NodeClass:
 
 ```
 apiVersion: karpenter.k8s.aws/v1beta1
@@ -90,4 +88,4 @@ spec:
 
 # End-to-End deployment example
 
-An end-to-end deployment example can be found in [Stable Diffusion on GPU](../blueprints/inference/GPUs/stablediffusion-gpus).
+An end-to-end deployment example can be found in [Stable Diffusion on GPU](../../../blueprints/inference/GPUs/stablediffusion-gpus).

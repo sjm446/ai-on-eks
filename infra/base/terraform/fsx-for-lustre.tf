@@ -125,14 +125,27 @@ resource "kubectl_manifest" "static_pv" {
 #---------------------------------------------------------------
 # FSx for Lustre Persistent Volume Claim
 #---------------------------------------------------------------
+resource "kubernetes_namespace" "fsx_namespace" {
+  count = var.deploy_fsx_volume && var.fsx_pvc_namespace != "default" ? 1 : 0
+  metadata {
+    name = var.fsx_pvc_namespace
+  }
+  depends_on = [
+    module.eks_blueprints_addons
+  ]
+}
+
 resource "kubectl_manifest" "static_pvc" {
-  count     = var.deploy_fsx_volume ? 1 : 0
-  yaml_body = templatefile("${path.module}/fsx-for-lustre/fsxlustre-static-pvc.yaml", {})
+  count = var.deploy_fsx_volume ? 1 : 0
+  yaml_body = templatefile("${path.module}/fsx-for-lustre/fsxlustre-static-pvc.yaml", {
+    namespace = var.fsx_pvc_namespace
+  })
 
   depends_on = [
     module.eks_blueprints_addons,
     kubectl_manifest.storage_class,
     kubectl_manifest.static_pv,
-    aws_fsx_lustre_file_system.this
+    aws_fsx_lustre_file_system.this,
+    kubernetes_namespace.fsx_namespace
   ]
 }

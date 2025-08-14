@@ -61,7 +61,7 @@ resource "aws_eks_access_entry" "karpenter_nodes" {
 #---------------------------------------------------------------
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.20"
+  version = "~> 1.22"
 
   cluster_name      = module.eks.cluster_name
   cluster_endpoint  = module.eks.cluster_endpoint
@@ -72,20 +72,20 @@ module "eks_blueprints_addons" {
   #---------------------------------------
   # AWS Load Balancer Controller Add-on
   #---------------------------------------
-  enable_aws_load_balancer_controller = true
+  enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
   # turn off the mutating webhook for services because we are using
   # service.beta.kubernetes.io/aws-load-balancer-type: external
   aws_load_balancer_controller = {
     set = [{
       name  = "enableServiceMutatorWebhook"
-      value = "false"
+      value = var.enable_service_mutator_webhook
     }]
   }
 
   #---------------------------------------
   # Ingress Nginx Add-on
   #---------------------------------------
-  enable_ingress_nginx = true
+  enable_ingress_nginx = var.enable_ingress_nginx
   ingress_nginx = {
     version = "4.12.1"
     values  = [templatefile("${path.module}/helm-values/ingress-nginx-values.yaml", {})]
@@ -181,7 +181,7 @@ module "eks_blueprints_addons" {
 
 module "data_addons" {
   source  = "aws-ia/eks-data-addons/aws"
-  version = "1.37.1"
+  version = "1.38.0"
 
   oidc_provider_arn = module.eks.oidc_provider_arn
 
@@ -309,7 +309,9 @@ module "data_addons" {
         amiFamily: Bottlerocket
         karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
         subnetSelectorTerms:
-          id: ${module.vpc.private_subnets[2]}
+          tags:
+            karpenter.sh/discovery: "${module.eks.cluster_name}"
+            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
         securityGroupSelectorTerms:
           tags:
             Name: ${module.eks.cluster_name}-node
@@ -365,7 +367,9 @@ module "data_addons" {
           - alias: bottlerocket@latest
         karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
         subnetSelectorTerms:
-          id: ${module.vpc.private_subnets[2]}
+          tags:
+            karpenter.sh/discovery: "${module.eks.cluster_name}"
+            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
         securityGroupSelectorTerms:
           tags:
             Name: ${module.eks.cluster_name}-node
@@ -429,7 +433,9 @@ module "data_addons" {
           - alias: bottlerocket@latest
         karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
         subnetSelectorTerms:
-          id: ${module.vpc.private_subnets[3]}
+          tags:
+            karpenter.sh/discovery: "${module.eks.cluster_name}"
+            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
         securityGroupSelectorTerms:
           tags:
             Name: ${module.eks.cluster_name}-node
@@ -485,7 +491,9 @@ module "data_addons" {
           - alias: bottlerocket@latest
         karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
         subnetSelectorTerms:
-          id: ${module.vpc.private_subnets[2]}
+          tags:
+            karpenter.sh/discovery: "${module.eks.cluster_name}"
+            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
         securityGroupSelectorTerms:
           tags:
             Name: ${module.eks.cluster_name}-node
@@ -544,7 +552,9 @@ module "data_addons" {
           - alias: bottlerocket@latest
         karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
         subnetSelectorTerms:
-          id: ${module.vpc.private_subnets[2]}
+          tags:
+            karpenter.sh/discovery: "${module.eks.cluster_name}"
+            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
         securityGroupSelectorTerms:
           tags:
             Name: ${module.eks.cluster_name}-node

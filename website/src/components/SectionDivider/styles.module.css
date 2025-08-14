@@ -1,0 +1,22 @@
+/* Section Dividers */
+.sectionDivider {
+  display: flex;
+  align-items: center;
+  margin: 4rem 0 3rem 0;
+  opacity: 0.7;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ifm-color-primary-lighter), var(--ifm-color-primary), var(--ifm-color-primary-lighter), transparent);
+}
+
+.dividerIcon {
+  margin: 0 1.5rem;
+  font-size: 1.8rem;
+  background: var(--ifm-background-surface-color);
+  padding: 0.5rem;
+  border-radius: 50%;
+  border: 2px solid var(--ifm-color-primary-lighter);
+}

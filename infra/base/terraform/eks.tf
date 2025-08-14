@@ -3,6 +3,10 @@
 #---------------------------------------
 
 locals {
+  # Filter secondary CIDR subnets (starting with "100.")
+  secondary_cidr_subnets = compact([for subnet_id, cidr_block in zipmap(module.vpc.private_subnets, module.vpc.private_subnets_cidr_blocks) :
+  substr(cidr_block, 0, 4) == "100." ? subnet_id : null])
+
   base_addons = {
     for name, enabled in var.enable_cluster_addons :
     name => {} if enabled
@@ -61,8 +65,7 @@ module "eks" {
 
   # Filtering only Secondary CIDR private subnets starting with "100.".
   # Subnet IDs where the EKS Control Plane ENIs will be created
-  subnet_ids = compact([for subnet_id, cidr_block in zipmap(module.vpc.private_subnets, module.vpc.private_subnets_cidr_blocks) :
-  substr(cidr_block, 0, 4) == "100." ? subnet_id : null])
+  subnet_ids = local.secondary_cidr_subnets
 
   # Combine root account, current user/role and additinoal roles to be able to access the cluster KMS key - required for terraform updates
   kms_key_administrators = distinct(concat([
@@ -130,7 +133,7 @@ module "eks" {
     }
   }
 
-  eks_managed_node_groups = {
+  eks_managed_node_groups = merge({
     #  It's recommended to have a Managed Node group for hosting critical add-ons
     #  It's recommended to use Karpenter to place your workloads instead of using Managed Node groups
     #  You can leverage nodeSelector and Taints/tolerations to distribute workloads across Managed Node group or Karpenter nodes.
@@ -139,9 +142,7 @@ module "eks" {
       description = "EKS Core node group for hosting system add-ons"
       # Filtering only Secondary CIDR private subnets starting with "100.".
       # Subnet IDs where the nodes/node groups will be provisioned
-      subnet_ids = compact([for subnet_id, cidr_block in zipmap(module.vpc.private_subnets, module.vpc.private_subnets_cidr_blocks) :
-        substr(cidr_block, 0, 4) == "100." ? subnet_id : null]
-      )
+      subnet_ids = local.secondary_cidr_subnets
 
       # aws ssm get-parameters --names /aws/service/eks/optimized-ami/1.27/amazon-linux-2/recommended/image_id --region us-west-2
       ami_type     = "AL2023_x86_64_STANDARD" # Use this for Graviton AL2023_ARM_64_STANDARD
@@ -202,9 +203,8 @@ module "eks" {
       }
     }
 
-    #---------------------------------------------------------------
-    # NVIDIA P4de MIG Node Group with Capacity Reservation
-    #---------------------------------------------------------------
+
+    }, length(var.capacity_block_reservation_id) > 0 ? {
     cbr = {
       ami_type       = "AL2023_x86_64_NVIDIA"
       instance_types = ["p4de.24xlarge"]
@@ -255,25 +255,23 @@ module "eks" {
       }
 
       #-------------------------------------
-      # NOTE: This code is using second private subnet "${local.region}b" availability zone
+      # NOTE: CBR (Capacity Block Reservation) requires specific AZ placement
+      # This uses the first available secondary CIDR subnet
       # TODO - Update the subnet to match the availability zone of YOUR capacity reservation
       #-------------------------------------
-      subnet_ids = [compact([for subnet_id, cidr_block in zipmap(module.vpc.private_subnets, module.vpc.private_subnets_cidr_blocks) : substr(cidr_block, 0, 4) == "100." ? subnet_id : null])[1]]
+      subnet_ids = [local.secondary_cidr_subnets[0]]
 
-      #------------------------------------
-      # TODO - Uncomment the below block and update the capacity reservation ID
-      #------------------------------------
-      # capacity_type = "CAPACITY_BLOCK"
-      # instance_market_options = {
-      #   market_type = "capacity-block"
-      # }
-      # capacity_reservation_specification = {
-      #   capacity_reservation_target = {
-      #     capacity_reservation_id = "cr-abcedefgh" # Replace with your capacity reservation ID
-      #   }
-      # }
+      capacity_type = "CAPACITY_BLOCK"
+      instance_market_options = {
+        market_type = "capacity-block"
+      }
+      capacity_reservation_specification = {
+        capacity_reservation_target = {
+          capacity_reservation_id = var.capacity_block_reservation_id # Replace with your capacity reservation ID
+        }
+      }
     }
-  }
+  } : {})
 }
 
 #---------------------------------------------------------------

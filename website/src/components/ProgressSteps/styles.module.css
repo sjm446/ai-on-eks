@@ -1,0 +1,114 @@
+/* Progress Steps */
+.progressSteps {
+  display: flex;
+  justify-content: space-between;
+  margin: 2rem 0;
+  position: relative;
+  gap: 1rem;
+}
+
+.progressSteps::before {
+  content: '';
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  right: 2rem;
+  height: 2px;
+  background: var(--ifm-color-emphasis-300);
+  z-index: 1;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 200px;
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.stepNumber {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--ifm-color-emphasis-300);
+  color: var(--ifm-color-content);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  border: 3px solid var(--ifm-background-surface-color);
+}
+
+.stepCurrent .stepNumber {
+  background: var(--ifm-color-primary);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(37, 194, 160, 0.2);
+  transform: scale(1.1);
+}
+
+.stepCompleted .stepNumber {
+  background: var(--ifm-color-success);
+  color: white;
+}
+
+.stepContent {
+  text-align: center;
+}
+
+.stepContent h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-color-content);
+}
+
+.stepContent p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.3;
+}
+
+.stepCurrent .stepContent h4 {
+  color: var(--ifm-color-primary);
+  font-weight: 700;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .progressSteps {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .progressSteps::before {
+    display: none;
+  }
+
+  .step {
+    flex-direction: row;
+    max-width: none;
+    text-align: left;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .stepNumber {
+    margin-bottom: 0;
+    width: 3rem;
+    height: 3rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .stepContent {
+    text-align: left;
+    flex: 1;
+  }
+}

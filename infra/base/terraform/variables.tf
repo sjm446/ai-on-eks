@@ -16,11 +16,33 @@ variable "eks_cluster_version" {
   type        = string
 }
 
-# VPC with 2046 IPs (10.1.0.0/21) and 2 AZs
-variable "vpc_cidr" {
-  description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range"
-  default     = "10.1.0.0/21"
+variable "capacity_block_reservation_id" {
+  description = "ID of capacity block reservation"
+  default     = ""
   type        = string
+}
+
+# VPC with configurable AZs - CIDR size should match AZ count
+variable "vpc_cidr" {
+  description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range. Recommended: /21 for 2 AZs, /20 for 3 AZs, /19 for 4 AZs. If the network prefix is not provided, it will be computed"
+  default     = "10.1.0.0"
+  type        = string
+}
+
+variable "availability_zones_count" {
+  description = "Number of availability zones to use for the deployment"
+  type        = number
+  default     = 2
+  validation {
+    condition     = var.availability_zones_count >= 2 && var.availability_zones_count <= 4
+    error_message = "The availability_zones_count must be between 2 and 4."
+  }
+}
+
+variable "single_nat_gateway" {
+  description = "Use a single NAT Gateway for all AZs (cost-effective for dev/test). Set to false for production to use one NAT Gateway per AZ for high availability."
+  type        = bool
+  default     = true
 }
 
 # RFC6598 range 100.64.0.0/10
@@ -86,6 +108,11 @@ variable "deploy_fsx_volume" {
   type        = bool
   default     = false
 }
+variable "fsx_pvc_namespace" {
+  description = "Namespace for FSx PVC"
+  type        = string
+  default     = "default"
+}
 variable "enable_amazon_prometheus" {
   description = "Enable Amazon Prometheus"
   type        = bool
@@ -96,7 +123,7 @@ variable "enable_amazon_emr" {
   type        = bool
   default     = false
 }
-# Addon Variables
+# Addon Variables for ai-on-eks/infra/base/terraform/addons.tf
 variable "enable_kube_prometheus_stack" {
   description = "Enable Kube Prometheus addon"
   type        = bool
@@ -171,79 +198,31 @@ variable "enable_mpi_operator" {
   default     = false
 }
 
-# ArgoCD Addons
-variable "enable_nvidia_nim_stack" {
-  description = "Flag to enable the NVIDIA NIM Stack addon"
+# AWS Load Balancer Controller Variables
+variable "enable_aws_load_balancer_controller" {
+  description = "Enable the AWS Load Balancer Controller"
+  type        = bool
+  default     = true
+}
+
+variable "enable_service_mutator_webhook" {
+  description = "Enable service-mutator webhook for AWS Load Balancer Controller"
   type        = bool
   default     = false
 }
 
-# Jupyterhub Specific Variables
-
-# NOTE: You need to use private domain or public domain name with ACM certificate
-# AI-on-EKS website docs will show you how to create free public domain name with ACM certificate for testing purpose only
-# Example of public domain name(<subdomain-name>.<domain-name>.com): eks.jupyter-doeks.dynamic-dns.com
-variable "jupyter_hub_auth_mechanism" {
-  type        = string
-  description = "Allowed values: cognito, dummy, oauth"
-  default     = "dummy"
+# Ingress-Nginx Controller
+variable "enable_ingress_nginx" {
+  description = "Enable ingress-nginx addon"
+  type        = bool
+  default     = true
 }
 
-#  Domain name is public so make sure you use a unique while deploying, Only needed if auth mechanism is set to cognito
-variable "cognito_custom_domain" {
-  description = "Cognito domain prefix for Hosted UI authentication endpoints"
-  type        = string
-  default     = "eks"
-}
-
-# Only needed if auth mechanism is set to cognito
-variable "acm_certificate_domain" {
-  type        = string
-  description = "Enter domain name with wildcard and ensure ACM certificate is created for this domain name, e.g. *.example.com"
-  default     = ""
-}
-
-# Only needed if auth mechanism is set to cognito or oauth. This is the domain for jupyterhub
-variable "jupyterhub_domain" {
-  type        = string
-  description = "Enter domain name for jupyterhub to be hosted,  e.g. eks.example.com. Only needed if auth mechanism is set to cognito or oauth"
-  default     = ""
-}
-
-# Only needed if auth mechanism is set to oauth. This is the root path for the oidc endpoints
-variable "oauth_domain" {
-  type        = string
-  description = "Enter oauth domain and endpoint, e.g. https://keycloak.example.com/realms/master/protocol/openid-connect. Only needed if auth mechanism is set to oauth"
-  default     = ""
-}
-
-# Only needed if auth mechanism is set to oauth. This is the id of the client
-variable "oauth_jupyter_client_id" {
-  type        = string
-  description = "Enter oauth client id for jupyterhub, e.g. jupyterhub. Only needed if auth mechanism is set to oauth"
-  default     = ""
-}
-
-# Only needed if auth mechanism is set to oauth. This is the secret for the client
-variable "oauth_jupyter_client_secret" {
-  type        = string
-  description = "Enter oauth client secret. Only needed if auth mechanism is set to oauth"
-  default     = ""
-  sensitive   = true
-}
-
-# Only needed if auth mechanism is set to oauth. This is the key to use for looking up the username.
-variable "oauth_username_key" {
-  type        = string
-  description = "oauth field for the username. e.g. 'preferred_username' Only needed if auth mechanism is set to oauth"
-  default     = ""
-}
-
-# List of role ARNs to add to the KMS policy
-variable "kms_key_admin_roles" {
-  description = "list of role ARNs to add to the KMS policy"
-  type        = list(string)
-  default     = []
+# ArgoCD Addons for ai-on-eks/infra/base/terraform/argocd_addons.tf
+variable "enable_nvidia_nim_stack" {
+  description = "Flag to enable the NVIDIA NIM Stack addon"
+  type        = bool
+  default     = false
 }
 
 # Flag to enable AIBrix stack
@@ -318,4 +297,86 @@ variable "enable_nvidia_dcgm_exporter" {
   EOF
   type        = bool
   default     = true
+}
+
+# Cert Manager
+variable "enable_cert_manager" {
+  description = "Enable cert-manager addon"
+  type        = bool
+  default     = false
+}
+
+# Slinky Slurm Operator
+variable "enable_slurm_operator" {
+  description = "Enable slurm-operator addon"
+  type        = bool
+  default     = false
+}
+
+# Jupyterhub Specific Variables
+
+# NOTE: You need to use private domain or public domain name with ACM certificate
+# AI-on-EKS website docs will show you how to create free public domain name with ACM certificate for testing purpose only
+# Example of public domain name(<subdomain-name>.<domain-name>.com): eks.jupyter-doeks.dynamic-dns.com
+variable "jupyter_hub_auth_mechanism" {
+  type        = string
+  description = "Allowed values: cognito, dummy, oauth"
+  default     = "dummy"
+}
+
+#  Domain name is public so make sure you use a unique while deploying, Only needed if auth mechanism is set to cognito
+variable "cognito_custom_domain" {
+  description = "Cognito domain prefix for Hosted UI authentication endpoints"
+  type        = string
+  default     = "eks"
+}
+
+# Only needed if auth mechanism is set to cognito
+variable "acm_certificate_domain" {
+  type        = string
+  description = "Enter domain name with wildcard and ensure ACM certificate is created for this domain name, e.g. *.example.com"
+  default     = ""
+}
+
+# Only needed if auth mechanism is set to cognito or oauth. This is the domain for jupyterhub
+variable "jupyterhub_domain" {
+  type        = string
+  description = "Enter domain name for jupyterhub to be hosted,  e.g. eks.example.com. Only needed if auth mechanism is set to cognito or oauth"
+  default     = ""
+}
+
+# Only needed if auth mechanism is set to oauth. This is the root path for the oidc endpoints
+variable "oauth_domain" {
+  type        = string
+  description = "Enter oauth domain and endpoint, e.g. https://keycloak.example.com/realms/master/protocol/openid-connect. Only needed if auth mechanism is set to oauth"
+  default     = ""
+}
+
+# Only needed if auth mechanism is set to oauth. This is the id of the client
+variable "oauth_jupyter_client_id" {
+  type        = string
+  description = "Enter oauth client id for jupyterhub, e.g. jupyterhub. Only needed if auth mechanism is set to oauth"
+  default     = ""
+}
+
+# Only needed if auth mechanism is set to oauth. This is the secret for the client
+variable "oauth_jupyter_client_secret" {
+  type        = string
+  description = "Enter oauth client secret. Only needed if auth mechanism is set to oauth"
+  default     = ""
+  sensitive   = true
+}
+
+# Only needed if auth mechanism is set to oauth. This is the key to use for looking up the username.
+variable "oauth_username_key" {
+  type        = string
+  description = "oauth field for the username. e.g. 'preferred_username' Only needed if auth mechanism is set to oauth"
+  default     = ""
+}
+
+# List of role ARNs to add to the KMS policy
+variable "kms_key_admin_roles" {
+  description = "list of role ARNs to add to the KMS policy"
+  type        = list(string)
+  default     = []
 }

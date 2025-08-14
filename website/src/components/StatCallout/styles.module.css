@@ -1,0 +1,88 @@
+/* Enhanced Callouts */
+.callout {
+  border-radius: 12px;
+  margin: 2rem 0;
+  overflow: hidden;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-surface-color);
+}
+
+.calloutCritical {
+  border-left: 5px solid #e74c3c;
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.05), rgba(231, 76, 60, 0.02));
+}
+
+.calloutWarning {
+  border-left: 5px solid #f39c12;
+  background: linear-gradient(135deg, rgba(243, 156, 18, 0.05), rgba(243, 156, 18, 0.02));
+}
+
+.calloutInfo {
+  border-left: 5px solid #3498db;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.05), rgba(52, 152, 219, 0.02));
+}
+
+.calloutHeader {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem 0.5rem 1.5rem;
+}
+
+.calloutCritical .calloutHeader {
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.calloutWarning .calloutHeader {
+  background: rgba(243, 156, 18, 0.1);
+}
+
+.calloutInfo .calloutHeader {
+  background: rgba(52, 152, 219, 0.1);
+}
+
+.calloutIcon {
+  font-size: 1.5rem;
+  margin-right: 0.75rem;
+}
+
+.calloutHeader h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ifm-color-content);
+}
+
+.calloutContent {
+  padding: 0.5rem 1.5rem 1.5rem 1.5rem;
+}
+
+.statHighlight {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.statNumber {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.calloutCritical .statNumber {
+  color: #e74c3c;
+}
+
+.calloutWarning .statNumber {
+  color: #f39c12;
+}
+
+.calloutInfo .statNumber {
+  color: #3498db;
+}
+
+.statLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-color-content-secondary);
+}

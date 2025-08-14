@@ -70,7 +70,7 @@ for sg in $(aws ec2 describe-security-groups \
   --filters "Name=tag:elbv2.k8s.aws/cluster,Values=$CLUSTERNAME" \
   --region $REGION \
   --query 'SecurityGroups[].GroupId' --output text); do \
-    aws ec2 delete-security-group --region $REGION --group-id "$sg"; \
+    aws ec2 delete-security-group --no-cli-pager --region $REGION --group-id "$sg"; \
   done
 
 # List of Terraform modules to destroy in sequence
