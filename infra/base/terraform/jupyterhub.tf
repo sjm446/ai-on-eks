@@ -9,8 +9,9 @@ resource "kubernetes_namespace" "jupyterhub" {
 }
 
 module "jupyterhub_single_user_irsa" {
-  count  = var.enable_jupyterhub ? 1 : 0
-  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  count   = var.enable_jupyterhub ? 1 : 0
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.60"
 
   role_name = "${module.eks.cluster_name}-jupyterhub-single-user-sa"
 
