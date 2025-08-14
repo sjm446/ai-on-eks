@@ -1,4 +1,4 @@
-# Cost Effective and Scalable Model Inference and Agentic AI on AWS Graviton with EKS
+# Inference ready Amazon EKS Cluster
 
 ## Table of Contents
 
