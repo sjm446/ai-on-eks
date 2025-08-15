@@ -3,13 +3,14 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Important Setup Instructions](#-important-setup-instructions)
 - [Architecture](#architecture)
 - [Architecture Steps](#architecture-steps)
 - [Plan Your Deployment](#plan-your-deployment)
-    - [Cost](#cost)
-    - [Sample Cost Table](#sample-cost-table)
+  - [AWS Services in this Guidance](#aws-services-in-this-guidance)
+  - [Cost](#cost)
+  - [Sample Cost Table](#sample-cost-table)
 - [Quick Start Guide](#quick-start-guide)
+    - [Important Setup Instructions](#-important-setup-instructions)
     - [Deploy the Infrastructure](#deploy-the-infrastructure)
     - [Deploying Models](#deploying-models)
       - [Prerequisites](#prerequisites)
@@ -24,32 +25,6 @@ This solution implements a comprehensive, scalable ML inference architecture usi
 Neuron processors for cost-effective, accelerated inference, and GPU instances for traditional inference. The system
 provides a complete end-to-end platform for deploying large language models and generative AI capabilities along with
 observability support.
-
-## ⚠️ Important Setup Instructions
-
-**Before proceeding with this solution, ensure you have:**
-
-- **AWS CLI configured** with appropriate permissions for EKS, ECR, CloudFormation, and other AWS services
-- **kubectl installed** and configured to access your target AWS region
-- **Sufficient AWS service quotas** - This solution requires multiple EC2 instances, EKS cluster, and other AWS
-  resources
-
-**Recommended Setup Verification:**
-
-```bash
-# Verify AWS CLI access
-aws sts get-caller-identity
-
-# Verify kubectl installation
-kubectl version --client
-
-# Check available AWS regions and quotas
-aws ec2 describe-regions
-aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A
-```
-
-**Cost Awareness:** This solution will incur AWS charges. Review the cost breakdown section below and set up billing
-alerts before deployment.
 
 ## Architecture
 
@@ -96,6 +71,18 @@ Kubernetes and Karpenter.
 
 ## Plan your deployment
 
+### AWS services in this Guidance
+
+| **AWS Service** | **Role** | **Description** |
+|-----------------|----------|-----------------|
+| [Amazon Elastic Kubernetes Service](https://aws.amazon.com/eks/) ( EKS) | Core service | Manages the Kubernetes control plane and worker nodes for container orchestration. |
+| [Amazon Elastic Compute Cloud](https://aws.amazon.com/ec2/) (EC2) | Core service | Provides the compute instances for EKS worker nodes and runs containerized applications. |
+| [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc/) (VPC) | Core Service | Creates an isolated network environment with public and private subnets across multiple Availability Zones. |
+| [Amazon Elastic Container Registry](http://aws.amazon.com/ecr/) (ECR) | Supporting service | Stores and manages Docker container images for EKS deployments. |
+| [Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) (NLB) | Supporting service | Distributes incoming traffic across multiple targets in the EKS cluster. |
+| [Amazon Elastic Block Store](https://aws.amazon.com/ebs) (EBS) | Supporting service | Provides persistent block storage volumes for EC2 instances in the EKS cluster. |
+| [AWS Key Management Service](https://aws.amazon.com/kms/) (KMS) | Security service | Manages encryption keys for securing data in EKS and other AWS services. |
+
 ### Cost
 
 You are responsible for the cost of the AWS services used while running this guidance.
@@ -133,6 +120,32 @@ The solution comes in two parts:
 - The infrastructure for running inference workloads (this)
 - The models that can be deployed on top of a running environment (
   the [inference charts](../../../blueprints/inference/inference-charts))
+
+### ⚠️ Important Setup Instructions
+
+**Before proceeding with this solution, ensure you have:**
+
+- **AWS CLI configured** with appropriate permissions for EKS, ECR, CloudFormation, and other AWS services
+- **kubectl installed** and configured to access your target AWS region
+- **Sufficient AWS service quotas** - This solution requires multiple EC2 instances, EKS cluster, and other AWS
+  resources
+
+**Recommended Setup Verification:**
+
+```bash
+# Verify AWS CLI access
+aws sts get-caller-identity
+
+# Verify kubectl installation
+kubectl version --client
+
+# Check available AWS regions and quotas
+aws ec2 describe-regions
+aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A
+```
+
+**Cost Awareness:** This solution will incur AWS charges. Review the cost breakdown section below and set up billing
+alerts before deployment.
 
 ### Deploy the Infrastructure
 
