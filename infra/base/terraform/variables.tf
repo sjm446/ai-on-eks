@@ -383,7 +383,11 @@ variable "kms_key_admin_roles" {
 
 # Enable SOCI snapshotter parallel pull/unpack mode
 variable "enable_soci_snapshotter" {
-  description = "Enable SOCI snapshotter parallel-pull-unpack mode"
+  description = <<-EOF
+    Enable SOCI snapshotter parallel pull/unpack mode
+
+    This feature when enabled, configures the EBS volume used by Bottlerocket's container resources to be fully optimized: IOPs: 16K, Throughput: 1000MiB/s
+  EOF
   type        = bool
   default     = false
 }

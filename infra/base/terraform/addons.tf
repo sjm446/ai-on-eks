@@ -330,8 +330,8 @@ module "data_addons" {
             ebs:
               volumeSize: 300Gi
               volumeType: gp3
-              ${var.enable_soci_snapshotter ? "iops: 16000" : "" }
-              ${var.enable_soci_snapshotter ? "throughput: 1000" : "" }
+              ${var.enable_soci_snapshotter ? "iops: 16000" : ""}
+              ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
               encrypted: true
               ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
         userData: | ${var.enable_soci_snapshotter ?
@@ -347,7 +347,7 @@ module "data_addons" {
     max-concurrent-unpacks-per-image = 10
     discard-unpacked-layers = true
           EOS
-      : "" }
+      : ""}
 
       nodePool:
         labels:
@@ -380,11 +380,11 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-      ]
-    }
-    g6-gpu-karpenter = {
-      values = [
-        <<-EOT
+    ]
+  }
+  g6-gpu-karpenter = {
+    values = [
+      <<-EOT
       name: g6-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -436,11 +436,11 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-      ]
-    }
-    g5-gpu-karpenter = {
-      values = [
-        <<-EOT
+    ]
+  }
+  g5-gpu-karpenter = {
+    values = [
+      <<-EOT
       name: g5-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -502,11 +502,11 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-      ]
-    }
-    x86-cpu-karpenter = {
-      values = [
-        <<-EOT
+    ]
+  }
+  x86-cpu-karpenter = {
+    values = [
+      <<-EOT
       name: x86-cpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -561,11 +561,11 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-      ]
-    }
-    trainium-trn1 = {
-      values = [
-        <<-EOT
+    ]
+  }
+  trainium-trn1 = {
+    values = [
+      <<-EOT
       name: trainium-trn1
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -622,11 +622,11 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-      ]
-    }
-    inferentia-inf2 = {
-      values = [
-        <<-EOT
+    ]
+  }
+  inferentia-inf2 = {
+    values = [
+      <<-EOT
       name: inferentia-inf2
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -681,14 +681,14 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-      ]
-    }
+    ]
   }
+}
 
-  depends_on = [
-    kubernetes_secret_v1.huggingface_token,
-    kubernetes_config_map_v1.notebook
-  ]
+depends_on = [
+  kubernetes_secret_v1.huggingface_token,
+  kubernetes_config_map_v1.notebook
+]
 }
 
 #---------------------------------------------------------------
