@@ -380,3 +380,10 @@ variable "kms_key_admin_roles" {
   type        = list(string)
   default     = []
 }
+
+# Enable SOCI snapshotter parallel pull/unpack mode
+variable "enable_soci_snapshotter" {
+  description = "Enable SOCI snapshotter parallel-pull-unpack mode"
+  type        = bool
+  default     = false
+}
