@@ -391,3 +391,10 @@ variable "enable_soci_snapshotter" {
   type        = bool
   default     = false
 }
+
+# Configure kernel max_user_namespaces
+variable "max_user_namespaces" {
+  description = "Configure kernel max_user_namespaces"
+  type        = number
+  default     = 0
+}

@@ -7,6 +7,13 @@ data "aws_acm_certificate" "issued" {
 
 locals {
   cognito_custom_domain = var.cognito_custom_domain
+
+  bottlerocket_user_data = templatefile("${path.module}/templates/bottlerocket_user_data.tpl",
+    {
+      enable_soci_snapshotter = var.enable_soci_snapshotter
+      max_user_namespaces     = var.max_user_namespaces
+    }
+  )
 }
 
 #---------------------------------------------------------------
@@ -334,20 +341,8 @@ module "data_addons" {
               ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
               encrypted: true
               ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: | ${var.enable_soci_snapshotter ?
-        <<EOS
-
-    [settings.container-runtime]
-    snapshotter = "soci"
-    [settings.container-runtime-plugins.soci-snapshotter]
-    pull-mode = "parallel-pull-unpack"
-    [settings.container-runtime-plugins.soci-snapshotter.parallel-pull-unpack]
-    max-concurrent-downloads-per-image = 20
-    concurrent-download-chunk-size = "16mb"
-    max-concurrent-unpacks-per-image = 10
-    discard-unpacked-layers = true
-          EOS
-      : ""}
+        userData: |
+          ${indent(4, local.bottlerocket_user_data)}
 
       nodePool:
         labels:
@@ -380,11 +375,11 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-    ]
-  }
-  g6-gpu-karpenter = {
-    values = [
-      <<-EOT
+      ]
+    }
+    g6-gpu-karpenter = {
+      values = [
+        <<-EOT
       name: g6-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -413,20 +408,8 @@ module "data_addons" {
               ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
               encrypted: true
               ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: | ${var.enable_soci_snapshotter ?
-      <<EOS
-
-    [settings.container-runtime]
-    snapshotter = "soci"
-    [settings.container-runtime-plugins.soci-snapshotter]
-    pull-mode = "parallel-pull-unpack"
-    [settings.container-runtime-plugins.soci-snapshotter.parallel-pull-unpack]
-    max-concurrent-downloads-per-image = 20
-    concurrent-download-chunk-size = "16mb"
-    max-concurrent-unpacks-per-image = 10
-    discard-unpacked-layers = true
-          EOS
-    : ""}
+        userData: |
+          ${indent(4, local.bottlerocket_user_data)}
 
       nodePool:
         labels:
@@ -458,11 +441,11 @@ module "data_addons" {
           expireAfter: 720h
         weight: 100
       EOT
-  ]
-}
-g5-gpu-karpenter = {
-  values = [
-    <<-EOT
+      ]
+    }
+    g5-gpu-karpenter = {
+      values = [
+        <<-EOT
       name: g5-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -494,20 +477,8 @@ g5-gpu-karpenter = {
               ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
               encrypted: true
               ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: | ${var.enable_soci_snapshotter ?
-    <<EOS
-
-    [settings.container-runtime]
-    snapshotter = "soci"
-    [settings.container-runtime-plugins.soci-snapshotter]
-    pull-mode = "parallel-pull-unpack"
-    [settings.container-runtime-plugins.soci-snapshotter.parallel-pull-unpack]
-    max-concurrent-downloads-per-image = 20
-    concurrent-download-chunk-size = "16mb"
-    max-concurrent-unpacks-per-image = 10
-    discard-unpacked-layers = true
-          EOS
-  : ""}
+        userData: |
+          ${indent(4, local.bottlerocket_user_data)}
 
       nodePool:
         labels:
@@ -540,11 +511,11 @@ g5-gpu-karpenter = {
           expireAfter: 720h
         weight: 100
       EOT
-]
-}
-x86-cpu-karpenter = {
-  values = [
-    <<-EOT
+      ]
+    }
+    x86-cpu-karpenter = {
+      values = [
+        <<-EOT
       name: x86-cpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -575,20 +546,8 @@ x86-cpu-karpenter = {
               ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
               encrypted: true
               ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: | ${var.enable_soci_snapshotter ?
-    <<EOS
-
-    [settings.container-runtime]
-    snapshotter = "soci"
-    [settings.container-runtime-plugins.soci-snapshotter]
-    pull-mode = "parallel-pull-unpack"
-    [settings.container-runtime-plugins.soci-snapshotter.parallel-pull-unpack]
-    max-concurrent-downloads-per-image = 20
-    concurrent-download-chunk-size = "16mb"
-    max-concurrent-unpacks-per-image = 10
-    discard-unpacked-layers = true
-          EOS
-  : ""}
+        userData: |
+          ${indent(4, local.bottlerocket_user_data)}
 
       nodePool:
         labels:
@@ -615,11 +574,11 @@ x86-cpu-karpenter = {
           expireAfter: 720h
         weight: 100
       EOT
-]
-}
-trainium-trn1 = {
-  values = [
-    <<-EOT
+      ]
+    }
+    trainium-trn1 = {
+      values = [
+        <<-EOT
       name: trainium-trn1
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -650,20 +609,8 @@ trainium-trn1 = {
               ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
               encrypted: true
               ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: | ${var.enable_soci_snapshotter ?
-    <<EOS
-
-    [settings.container-runtime]
-    snapshotter = "soci"
-    [settings.container-runtime-plugins.soci-snapshotter]
-    pull-mode = "parallel-pull-unpack"
-    [settings.container-runtime-plugins.soci-snapshotter.parallel-pull-unpack]
-    max-concurrent-downloads-per-image = 20
-    concurrent-download-chunk-size = "16mb"
-    max-concurrent-unpacks-per-image = 10
-    discard-unpacked-layers = true
-          EOS
-  : ""}
+        userData: |
+          ${indent(4, local.bottlerocket_user_data)}
 
       nodePool:
         labels:
@@ -692,11 +639,11 @@ trainium-trn1 = {
           expireAfter: 720h
         weight: 100
       EOT
-]
-}
-inferentia-inf2 = {
-  values = [
-    <<-EOT
+      ]
+    }
+    inferentia-inf2 = {
+      values = [
+        <<-EOT
       name: inferentia-inf2
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
@@ -726,20 +673,8 @@ inferentia-inf2 = {
               ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
               encrypted: true
               ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: | ${var.enable_soci_snapshotter ?
-    <<EOS
-
-    [settings.container-runtime]
-    snapshotter = "soci"
-    [settings.container-runtime-plugins.soci-snapshotter]
-    pull-mode = "parallel-pull-unpack"
-    [settings.container-runtime-plugins.soci-snapshotter.parallel-pull-unpack]
-    max-concurrent-downloads-per-image = 20
-    concurrent-download-chunk-size = "16mb"
-    max-concurrent-unpacks-per-image = 10
-    discard-unpacked-layers = true
-          EOS
-  : ""}
+        userData: |
+          ${indent(4, local.bottlerocket_user_data)}
 
       nodePool:
         labels:
@@ -768,14 +703,14 @@ inferentia-inf2 = {
           expireAfter: 720h
         weight: 100
       EOT
-]
-}
-}
+      ]
+    }
+  }
 
-depends_on = [
-  kubernetes_secret_v1.huggingface_token,
-  kubernetes_config_map_v1.notebook
-]
+  depends_on = [
+    kubernetes_secret_v1.huggingface_token,
+    kubernetes_config_map_v1.notebook
+  ]
 }
 
 #---------------------------------------------------------------
