@@ -6,12 +6,18 @@ import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import VideoGrid from '@site/src/components/VideoGrid/VideoGrid';
 import styles from './index.module.css';
+import Head from '@docusaurus/Head';
 
 function HomepageHeader() {
     const { siteConfig } = useDocusaurusContext();
-
+    const OGMeta = () => (
+        <Head>
+            <meta name="og:image" content="https://awslabs.github.io/ai-on-eks/img/aioeks-logo-green.png" />
+        </Head>
+    );
     return (
         <header className={clsx('hero', styles.heroBanner)}>
+            {OGMeta()}
             <div className={styles.heroContainer}>
                 {/* Main Logo Section */}
                 <div className={styles.logoSection}>
