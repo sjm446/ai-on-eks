@@ -53,8 +53,8 @@ function HomepageHeader() {
                     </Link>
                     <Link
                         className={clsx(styles.secondaryButton)}
-                        to="https://awslabs.github.io/ai-on-eks/">
-                        Explore AI on EKS
+                        to="https://awslabs.github.io/data-on-eks/">
+                        Explore Data on EKS
                     </Link>
                 </div>
 
