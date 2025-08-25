@@ -329,6 +329,7 @@ module "data_addons" {
           - instanceType: g6-gpu-karpenter
           - type: karpenter
           - gpuType: l4
+          - accelerator: nvidia
         taints:
           - key: nvidia.com/gpu
             value: "Exists"
