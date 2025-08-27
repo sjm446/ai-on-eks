@@ -52,6 +52,14 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      announcementBar: {
+        id: 'genai-workshop-banner',
+        content:
+          'GenAI on EKS workshop series! <a target="_blank" rel="noopener noreferrer" href="https://aws-experience.com/emea/smb/events/series/get-hands-on-with-amazon-eks?trk=badfd600-1ff1-4d93-9976-1d0b49e13bba&sc_channel=el" style="color: #ffffff; text-decoration: underline; font-weight: bold; margin-left: 10px;">Register now →</a>',
+        backgroundColor: '#667eea',
+        textColor: '#ffffff',
+        isCloseable: true,
+      },
       mermaid: {
         theme: { light: 'neutral', dark: 'forest' },
         options: {
@@ -93,6 +101,7 @@ const config = {
         ],
         copyright: `Built with ❤️ at AWS  <br/> © ${new Date().getFullYear()} Amazon.com, Inc. or its affiliates. All Rights Reserved`,
       },
+
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
