@@ -8,10 +8,14 @@ data "aws_acm_certificate" "issued" {
 locals {
   cognito_custom_domain = var.cognito_custom_domain
 
-  bottlerocket_user_data = templatefile("${path.module}/templates/bottlerocket_user_data.tpl",
+  bottlerocket_ec2nodeclass = templatefile("${path.module}/templates/bottlerocket_ec2nodeclass.tpl",
     {
-      enable_soci_snapshotter = var.enable_soci_snapshotter
-      max_user_namespaces     = var.max_user_namespaces
+      node_iam_role                       = split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]
+      cluster_name                        = module.eks.cluster_name
+      enable_soci_snapshotter             = var.enable_soci_snapshotter
+      soci_snapshotter_use_instance_store = var.soci_snapshotter_use_instance_store
+      data_disk_snapshot_id               = var.bottlerocket_data_disk_snapshot_id
+      max_user_namespaces                 = var.max_user_namespaces
     }
   )
 }
@@ -313,36 +317,7 @@ module "data_addons" {
       name: g6e-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        amiFamily: Bottlerocket
-        amiSelectorTerms:
-          - alias: bottlerocket@latest
-        karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
-        subnetSelectorTerms:
-          tags:
-            karpenter.sh/discovery: "${module.eks.cluster_name}"
-            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
-        securityGroupSelectorTerms:
-          tags:
-            Name: ${module.eks.cluster_name}-node
-        instanceStorePolicy: RAID0
-        blockDeviceMappings:
-          # Root device
-          - deviceName: /dev/xvda
-            ebs:
-              volumeSize: 50Gi
-              volumeType: gp3
-              encrypted: true
-          # Data device: Container resources such as images and logs
-          - deviceName: /dev/xvdb
-            ebs:
-              volumeSize: 300Gi
-              volumeType: gp3
-              ${var.enable_soci_snapshotter ? "iops: 16000" : ""}
-              ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
-              encrypted: true
-              ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: |
-          ${indent(4, local.bottlerocket_user_data)}
+        ${indent(2, local.bottlerocket_ec2nodeclass)}
 
       nodePool:
         labels:
@@ -383,33 +358,7 @@ module "data_addons" {
       name: g6-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        amiFamily: Bottlerocket
-        karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
-        subnetSelectorTerms:
-          tags:
-            karpenter.sh/discovery: "${module.eks.cluster_name}"
-            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
-        securityGroupSelectorTerms:
-          tags:
-            Name: ${module.eks.cluster_name}-node
-        instanceStorePolicy: RAID0
-        blockDeviceMappings:
-          # Root device
-          - deviceName: /dev/xvda
-            ebs:
-              volumeSize: 50Gi
-              volumeType: gp3
-              encrypted: true
-          - deviceName: /dev/xvdb
-            ebs:
-              volumeSize: 300Gi
-              volumeType: gp3
-              ${var.enable_soci_snapshotter ? "iops: 16000" : ""}
-              ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
-              encrypted: true
-              ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: |
-          ${indent(4, local.bottlerocket_user_data)}
+        ${indent(2, local.bottlerocket_ec2nodeclass)}
 
       nodePool:
         labels:
@@ -449,36 +398,7 @@ module "data_addons" {
       name: g5-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        amiFamily: Bottlerocket
-        amiSelectorTerms:
-          - alias: bottlerocket@latest
-        karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
-        subnetSelectorTerms:
-          tags:
-            karpenter.sh/discovery: "${module.eks.cluster_name}"
-            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
-        securityGroupSelectorTerms:
-          tags:
-            Name: ${module.eks.cluster_name}-node
-        instanceStorePolicy: RAID0
-        blockDeviceMappings:
-          # Root device
-          - deviceName: /dev/xvda
-            ebs:
-              volumeSize: 50Gi
-              volumeType: gp3
-              encrypted: true
-          # Data device: Container resources such as images and logs
-          - deviceName: /dev/xvdb
-            ebs:
-              volumeSize: 300Gi
-              volumeType: gp3
-              ${var.enable_soci_snapshotter ? "iops: 16000" : ""}
-              ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
-              encrypted: true
-              ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: |
-          ${indent(4, local.bottlerocket_user_data)}
+        ${indent(2, local.bottlerocket_ec2nodeclass)}
 
       nodePool:
         labels:
@@ -519,35 +439,7 @@ module "data_addons" {
       name: x86-cpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        amiFamily: Bottlerocket
-        amiSelectorTerms:
-          - alias: bottlerocket@latest
-        karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
-        subnetSelectorTerms:
-          tags:
-            karpenter.sh/discovery: "${module.eks.cluster_name}"
-            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
-        securityGroupSelectorTerms:
-          tags:
-            Name: ${module.eks.cluster_name}-node
-        blockDeviceMappings:
-          # Root device
-          - deviceName: /dev/xvda
-            ebs:
-              volumeSize: 100Gi
-              volumeType: gp3
-              encrypted: true
-          # Data device: Container resources such as images and logs
-          - deviceName: /dev/xvdb
-            ebs:
-              volumeSize: 300Gi
-              volumeType: gp3
-              ${var.enable_soci_snapshotter ? "iops: 16000" : ""}
-              ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
-              encrypted: true
-              ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: |
-          ${indent(4, local.bottlerocket_user_data)}
+        ${indent(2, local.bottlerocket_ec2nodeclass)}
 
       nodePool:
         labels:
@@ -582,35 +474,7 @@ module "data_addons" {
       name: trainium-trn1
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        amiSelectorTerms:
-          - alias: bottlerocket@latest
-        karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
-        subnetSelectorTerms:
-          tags:
-            karpenter.sh/discovery: "${module.eks.cluster_name}"
-            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
-        securityGroupSelectorTerms:
-          tags:
-            Name: ${module.eks.cluster_name}-node
-        instanceStorePolicy: RAID0
-        blockDeviceMappings:
-          # Root device
-          - deviceName: /dev/xvda
-            ebs:
-              volumeSize: 100Gi
-              volumeType: gp3
-              encrypted: true
-          # Data device: Container resources such as images and logs
-          - deviceName: /dev/xvdb
-            ebs:
-              volumeSize: 300Gi
-              volumeType: gp3
-              ${var.enable_soci_snapshotter ? "iops: 16000" : ""}
-              ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
-              encrypted: true
-              ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: |
-          ${indent(4, local.bottlerocket_user_data)}
+        ${indent(2, local.bottlerocket_ec2nodeclass)}
 
       nodePool:
         labels:
@@ -647,34 +511,7 @@ module "data_addons" {
       name: inferentia-inf2
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        amiSelectorTerms:
-          - alias: bottlerocket@latest
-        karpenterRole: ${split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]}
-        subnetSelectorTerms:
-          tags:
-            karpenter.sh/discovery: "${module.eks.cluster_name}"
-            Name: "${module.eks.cluster_name}-private-secondary*" # Only seconddary cidr subnets
-        securityGroupSelectorTerms:
-          tags:
-            Name: ${module.eks.cluster_name}-node
-        blockDeviceMappings:
-          # Root device
-          - deviceName: /dev/xvda
-            ebs:
-              volumeSize: 100Gi
-              volumeType: gp3
-              encrypted: true
-          # Data device: Container resources such as images and logs
-          - deviceName: /dev/xvdb
-            ebs:
-              volumeSize: 300Gi
-              volumeType: gp3
-              ${var.enable_soci_snapshotter ? "iops: 16000" : ""}
-              ${var.enable_soci_snapshotter ? "throughput: 1000" : ""}
-              encrypted: true
-              ${var.bottlerocket_data_disk_snapshot_id != null ? "snapshotID: ${var.bottlerocket_data_disk_snapshot_id}" : ""}
-        userData: |
-          ${indent(4, local.bottlerocket_user_data)}
+        ${indent(2, local.bottlerocket_ec2nodeclass)}
 
       nodePool:
         labels:
