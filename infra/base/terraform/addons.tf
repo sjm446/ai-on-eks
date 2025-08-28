@@ -61,7 +61,7 @@ resource "aws_eks_access_entry" "karpenter_nodes" {
 #---------------------------------------------------------------
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.20"
+  version = "~> 1.22"
 
   cluster_name      = module.eks.cluster_name
   cluster_endpoint  = module.eks.cluster_endpoint
@@ -181,7 +181,7 @@ module "eks_blueprints_addons" {
 
 module "data_addons" {
   source  = "aws-ia/eks-data-addons/aws"
-  version = "1.37.1"
+  version = "1.38.0"
 
   oidc_provider_arn = module.eks.oidc_provider_arn
 

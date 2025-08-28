@@ -12,15 +12,37 @@ variable "region" {
 
 variable "eks_cluster_version" {
   description = "EKS Cluster version"
-  default     = "1.32"
+  default     = "1.33"
   type        = string
 }
 
-# VPC with 2046 IPs (10.1.0.0/21) and 2 AZs
-variable "vpc_cidr" {
-  description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range"
-  default     = "10.1.0.0/21"
+variable "capacity_block_reservation_id" {
+  description = "ID of capacity block reservation"
+  default     = ""
   type        = string
+}
+
+# VPC with configurable AZs - CIDR size should match AZ count
+variable "vpc_cidr" {
+  description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range. Recommended: /21 for 2 AZs, /20 for 3 AZs, /19 for 4 AZs. If the network prefix is not provided, it will be computed"
+  default     = "10.1.0.0"
+  type        = string
+}
+
+variable "availability_zones_count" {
+  description = "Number of availability zones to use for the deployment"
+  type        = number
+  default     = 2
+  validation {
+    condition     = var.availability_zones_count >= 2 && var.availability_zones_count <= 4
+    error_message = "The availability_zones_count must be between 2 and 4."
+  }
+}
+
+variable "single_nat_gateway" {
+  description = "Use a single NAT Gateway for all AZs (cost-effective for dev/test). Set to false for production to use one NAT Gateway per AZ for high availability."
+  type        = bool
+  default     = true
 }
 
 # RFC6598 range 100.64.0.0/10
@@ -86,6 +108,11 @@ variable "deploy_fsx_volume" {
   type        = bool
   default     = false
 }
+variable "fsx_pvc_namespace" {
+  description = "Namespace for FSx PVC"
+  type        = string
+  default     = "default"
+}
 variable "enable_amazon_prometheus" {
   description = "Enable Amazon Prometheus"
   type        = bool
@@ -96,7 +123,7 @@ variable "enable_amazon_emr" {
   type        = bool
   default     = false
 }
-# Addon Variables
+# Addon Variables for ai-on-eks/infra/base/terraform/addons.tf
 variable "enable_kube_prometheus_stack" {
   description = "Enable Kube Prometheus addon"
   type        = bool
@@ -171,9 +198,117 @@ variable "enable_mpi_operator" {
   default     = false
 }
 
-# ArgoCD Addons
+# AWS Load Balancer Controller Variables
+variable "enable_aws_load_balancer_controller" {
+  description = "Enable the AWS Load Balancer Controller"
+  type        = bool
+  default     = true
+}
+
+variable "enable_service_mutator_webhook" {
+  description = "Enable service-mutator webhook for AWS Load Balancer Controller"
+  type        = bool
+  default     = false
+}
+
+# Ingress-Nginx Controller
+variable "enable_ingress_nginx" {
+  description = "Enable ingress-nginx addon"
+  type        = bool
+  default     = true
+}
+
+# ArgoCD Addons for ai-on-eks/infra/base/terraform/argocd_addons.tf
 variable "enable_nvidia_nim_stack" {
   description = "Flag to enable the NVIDIA NIM Stack addon"
+  type        = bool
+  default     = false
+}
+
+# Flag to enable AIBrix stack
+variable "enable_aibrix_stack" {
+  description = "Enable AIBrix addon"
+  type        = bool
+  default     = false
+}
+
+# AIBrix version
+variable "aibrix_stack_version" {
+  description = "AIBrix default version"
+  type        = string
+  default     = "v0.2.1"
+}
+
+# Enable NVIDIA DRA Driver addon
+variable "enable_nvidia_dra_driver" {
+  description = "Enable NVIDIA DRA Driver addon"
+  type        = bool
+  default     = false
+}
+
+variable "enable_nvidia_gpu_operator" {
+  description = <<-EOF
+    Enable NVIDIA GPU Operator
+
+    Components deployed:
+    - Device Plugin (GPU resource scheduling)
+    - DCGM Exporter (GPU metrics and monitoring)
+    - Node Feature Discovery (NFD - hardware labeling)
+    - GPU Feature Discovery (GFD - GPU-specific labeling)
+    - MIG Manager (Multi-Instance GPU partitioning)
+    - Container Toolkit (GPU container runtime)
+    - Operator Controller (lifecycle management)
+
+    Note: Drivers are NOT installed (pre-installed on EKS AMI)
+    Use when: Advanced GPU management, MIG partitioning, comprehensive monitoring
+  EOF
+  type        = bool
+  default     = false
+}
+
+variable "enable_nvidia_device_plugin" {
+  description = <<-EOF
+    Enable standalone NVIDIA Device Plugin chart (only when GPU Operator is disabled)
+
+    Components deployed:
+    - Device Plugin (GPU resource scheduling)
+    - GPU Feature Discovery (GFD - GPU-specific labeling)
+    - Node Feature Discovery (NFD - hardware detection and labeling)
+      └── NFD Garbage Collector
+      └── NFD Topology Updater
+      └── NFD Worker
+
+    Note: Includes labeling and discovery but NO MIG support or advanced management
+    Use when: Need GPU scheduling + node labeling without full operator complexity
+  EOF
+  type        = bool
+  default     = true
+}
+
+variable "enable_nvidia_dcgm_exporter" {
+  description = <<-EOF
+    Enable standalone NVIDIA DCGM Exporter (only when GPU Operator is disabled)
+
+    Components deployed:
+    - DCGM Exporter only (GPU metrics collection for Prometheus)
+
+    Note: Requires Device Plugin for GPU detection
+    Use when: Need GPU monitoring without full GPU Operator
+  EOF
+  type        = bool
+  default     = true
+}
+
+# Cert Manager
+variable "enable_cert_manager" {
+  description = "Enable cert-manager addon"
+  type        = bool
+  default     = false
+}
+
+# Slinky Slurm Operator
+variable "enable_slurm_operator" {
+  description = "Enable slurm-operator addon"
   type        = bool
   default     = false
 }
@@ -244,20 +379,6 @@ variable "kms_key_admin_roles" {
   description = "list of role ARNs to add to the KMS policy"
   type        = list(string)
   default     = []
-}
-
-# Flag to enable AIBrix stack
-variable "enable_aibrix_stack" {
-  description = "Enable AIBrix addon"
-  type        = bool
-  default     = false
-}
-
-# AIBrix version
-variable "aibrix_stack_version" {
-  description = "AIBrix default version"
-  type        = string
-  default     = "v0.2.1"
 }
 
 # Flag to enable Dynamo stack
