@@ -613,3 +613,33 @@ code:not([class*="language-"]) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(229, 83, 75, 0.4);
 }
+
+/* Announcement Bar Font Size Styling */
+.announcementBar_node_modules-\@docusaurus-theme-classic-lib-theme-AnnouncementBar-Content-styles-module {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+/* Alternative selector for announcement bar content */
+div[class*="announcementBar"] {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+/* More specific announcement bar styling */
+.announcement-bar,
+[class*="announcementBar"] {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+/* Target the announcement bar content directly */
+.announcement-bar-content,
+[class*="announcementBarContent"] {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
