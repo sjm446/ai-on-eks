@@ -8,8 +8,10 @@ subnetSelectorTerms:
 securityGroupSelectorTerms:
   tags:
     Name: ${cluster_name}-node
-%{ if enable_soci_snapshotter && soci_snapshotter_use_instance_store ~}
-%{ else ~}
+%{ if enable_soci_snapshotter && !soci_snapshotter_use_instance_store ~}
+instanceStorePolicy: RAID0
+%{ endif ~}
+%{ if !enable_soci_snapshotter ~}
 instanceStorePolicy: RAID0
 %{ endif ~}
 blockDeviceMappings:
@@ -29,7 +31,7 @@ blockDeviceMappings:
       throughput: 1000
 %{ endif ~}
       encrypted: true
-%{ if data_disk_snapshot_id != null ~}
+%{ if data_disk_snapshot_id != "" ~}
       snapshotID: ${data_disk_snapshot_id}
 %{ endif ~}
 userData: |
