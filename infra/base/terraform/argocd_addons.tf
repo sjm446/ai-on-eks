@@ -107,3 +107,14 @@ resource "kubectl_manifest" "slurm_operator_yaml" {
     kubectl_manifest.cert_manager_yaml
   ]
 }
+
+# MPI Operator
+resource "kubectl_manifest" "mpi_operator" {
+  count     = var.enable_mpi_operator ? 1 : 0
+  yaml_body = file("${path.module}/argocd-addons/mpi-operator.yaml")
+
+  depends_on = [
+    module.eks_blueprints_addons,
+    kubectl_manifest.cert_manager_yaml
+  ]
+}
