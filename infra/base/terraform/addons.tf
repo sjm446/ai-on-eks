@@ -8,7 +8,7 @@ data "aws_acm_certificate" "issued" {
 locals {
   cognito_custom_domain = var.cognito_custom_domain
 
-  bottlerocket_ec2nodeclass = templatefile("${path.module}/templates/bottlerocket_ec2nodeclass.tpl",
+  ec2nodeclass = templatefile("${path.module}/templates/${var.ami_family}_ec2nodeclass.tpl",
     {
       node_iam_role                       = split("/", module.eks_blueprints_addons.karpenter.node_iam_role_arn)[1]
       cluster_name                        = module.eks.cluster_name
@@ -317,7 +317,7 @@ module "data_addons" {
       name: g6e-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        ${indent(2, local.bottlerocket_ec2nodeclass)}
+        ${indent(2, local.ec2nodeclass)}
 
       nodePool:
         labels:
@@ -325,6 +325,7 @@ module "data_addons" {
           - type: karpenter
           - accelerator: nvidia
           - gpuType: l40s
+          - amiFamily: ${var.ami_family}
         taints:
           - key: nvidia.com/gpu
             value: "Exists"
@@ -358,13 +359,15 @@ module "data_addons" {
       name: g6-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        ${indent(2, local.bottlerocket_ec2nodeclass)}
+        ${indent(2, local.ec2nodeclass)}
 
       nodePool:
         labels:
           - instanceType: g6-gpu-karpenter
           - type: karpenter
+          - accelerator: nvidia
           - gpuType: l4
+          - amiFamily: ${var.ami_family}
         taints:
           - key: nvidia.com/gpu
             value: "Exists"
@@ -398,7 +401,7 @@ module "data_addons" {
       name: g5-gpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        ${indent(2, local.bottlerocket_ec2nodeclass)}
+        ${indent(2, local.ec2nodeclass)}
 
       nodePool:
         labels:
@@ -406,6 +409,7 @@ module "data_addons" {
           - type: karpenter
           - accelerator: nvidia
           - gpuType: a10g
+          - amiFamily: ${var.ami_family}
         taints:
           - key: nvidia.com/gpu
             value: "Exists"
@@ -439,12 +443,13 @@ module "data_addons" {
       name: x86-cpu-karpenter
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        ${indent(2, local.bottlerocket_ec2nodeclass)}
+        ${indent(2, local.ec2nodeclass)}
 
       nodePool:
         labels:
-          - type: karpenter
           - instanceType: x86-cpu-karpenter
+          - type: karpenter
+          - amiFamily: ${var.ami_family}
         requirements:
           - key: "karpenter.k8s.aws/instance-family"
             operator: In
@@ -474,13 +479,14 @@ module "data_addons" {
       name: trainium-trn1
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        ${indent(2, local.bottlerocket_ec2nodeclass)}
+        ${indent(2, local.ec2nodeclass)}
 
       nodePool:
         labels:
-          - type: karpenter
           - instanceType: trainium-trn1
+          - type: karpenter
           - accelerator: neuron
+          - amiFamily: ${var.ami_family}
         taints:
           - key: aws.amazon.com/neuron
             value: "true"
@@ -511,13 +517,14 @@ module "data_addons" {
       name: inferentia-inf2
       clusterName: ${module.eks.cluster_name}
       ec2NodeClass:
-        ${indent(2, local.bottlerocket_ec2nodeclass)}
+        ${indent(2, local.ec2nodeclass)}
 
       nodePool:
         labels:
           - instanceType: inferentia-inf2
           - type: karpenter
           - accelerator: neuron
+          - amiFamily: ${var.ami_family}
         taints:
           - key: aws.amazon.com/neuron
             value: "true"

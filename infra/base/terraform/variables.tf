@@ -404,3 +404,15 @@ variable "max_user_namespaces" {
   type        = number
   default     = 0
 }
+
+# Configure Karpenter NodePool AMI Family
+variable "ami_family" {
+  description = "Configure the AMI family to be used with Karpenter NodePools"
+  type        = string
+  default     = "bottlerocket"
+
+  validation {
+    condition     = var.ami_family == "bottlerocket" || var.ami_family == "al2023"
+    error_message = "The ami_family must be set to either \"bottlerocket\" or \"al2023\"."
+  }
+}
