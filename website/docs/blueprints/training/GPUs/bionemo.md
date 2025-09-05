@@ -199,7 +199,6 @@ It handles the following tasks:
 
 
 ```bash
-cd examples/training
 kubectl apply -f esm1nv_pretrain-job.yaml
 ```
 
