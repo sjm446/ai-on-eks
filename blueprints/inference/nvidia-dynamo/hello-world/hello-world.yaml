@@ -44,7 +44,7 @@ spec:
           memory: "2Gi"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/examples/runtime/hello_world/
           command:
             - /bin/sh
@@ -86,13 +86,13 @@ spec:
           memory: "4Gi"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/examples/runtime/hello_world/
           command:
             - /bin/sh
             - -c
           args:
-            - python3 hello_world.py 2>&1 | tee /tmp/hello_world.log
+            - "python3 hello_world.py 2>&1 | tee /tmp/hello_world.log"
         # NGC authentication handled by dynamo-cloud namespace secret
         imagePullSecrets:
           - name: docker-imagepullsecret

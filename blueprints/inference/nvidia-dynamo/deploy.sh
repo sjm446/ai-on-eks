@@ -20,7 +20,7 @@
 # Version Management:
 #   - Automatically reads version from ../infra/nvidia-dynamo/terraform/blueprint.tfvars
 #   - Can override with DYNAMO_VERSION environment variable
-#   - Example: DYNAMO_VERSION=v0.4.0 ./deploy.sh vllm
+#   - Example: DYNAMO_VERSION=v0.4.1 ./deploy.sh vllm
 #---------------------------------------------------------------
 
 set -euo pipefail
@@ -40,7 +40,7 @@ NAMESPACE="dynamo-cloud"
 
 # Dynamo version management
 TFVARS_FILE="${SCRIPT_DIR}/../../../infra/nvidia-dynamo/terraform/blueprint.tfvars"
-DEFAULT_VERSION="v0.4.0"  # Fallback if tfvars file not found
+DEFAULT_VERSION="v0.4.1"  # Fallback if tfvars file not found
 VERSION_SOURCE=""  # Track where version came from
 
 # Utility functions
@@ -104,13 +104,12 @@ AVAILABLE_EXAMPLES=(
     "hello-world:Simple CPU-only example for testing Dynamo functionality"
     "vllm:vLLM-based LLM serving with aggregated architecture"
     "sglang:SGLang-based LLM serving with advanced caching"
-    "trtllm:TensorRT-LLM optimized inference"
+    "trtllm:TensorRT-LLM optimized inference (requires NGC authentication)"
     "multi-replica-vllm:Multi-replica vLLM deployment with KV routing and high availability"
     "vllm-disagg:vLLM disaggregated serving (separate prefill/decode workers)"
     "sglang-disagg:SGLang disaggregated serving with RadixAttention"
-    "trtllm-disagg:TensorRT-LLM disaggregated serving for maximum performance"
-    "kv-routing:KV-aware routing demo with multiple workers"
-    "sla-planner:SLA-based autoscaling with performance targets"
+    "trtllm-disagg:TensorRT-LLM disaggregated serving for maximum performance (requires NGC authentication)"
+    "kv-routing:KV-aware routing demo with multiple workers (improved configuration)"
 )
 
 #---------------------------------------------------------------
@@ -142,7 +141,7 @@ EXAMPLE=""
 if [ $# -gt 0 ]; then
     EXAMPLE="$1"
     # Validate provided example
-    VALID_EXAMPLES=("hello-world" "vllm" "sglang" "trtllm" "multi-replica-vllm" "vllm-disagg" "sglang-disagg" "trtllm-disagg" "kv-routing" "sla-planner")
+    VALID_EXAMPLES=("hello-world" "vllm" "sglang" "trtllm" "multi-replica-vllm" "vllm-disagg" "sglang-disagg" "trtllm-disagg" "kv-routing")
     if [[ ! " ${VALID_EXAMPLES[@]} " =~ " ${EXAMPLE} " ]]; then
         error "Invalid example: ${EXAMPLE}"
         info "Available examples: ${VALID_EXAMPLES[*]}"
@@ -184,8 +183,8 @@ if [ -f "${MANIFEST_FILE}" ]; then
         # Extract just the version number without 'v' prefix if present
         VERSION_TAG="${DYNAMO_VERSION#v}"
 
-        # Only update if version is different from 0.4.0
-        if [ "${VERSION_TAG}" != "0.4.0" ]; then
+        # Only update if version is different from 0.4.1
+        if [ "${VERSION_TAG}" != "0.4.1" ]; then
             TEMP_MANIFEST="$(mktemp)"
             info "Updating manifest to use Dynamo version ${VERSION_TAG}..."
             sed "s/:0\.4\.0/:${VERSION_TAG}/g" "${MANIFEST_FILE}" > "${TEMP_MANIFEST}"
@@ -283,6 +282,131 @@ if [[ "$EXAMPLE" =~ ^(vllm|sglang|trtllm|multi-replica-vllm|vllm-disagg|sglang-d
     else
         success "HuggingFace token secret found"
     fi
+fi
+
+# Check for NGC token secret (for TensorRT-LLM examples)
+if [[ "$EXAMPLE" =~ ^(trtllm|trtllm-disagg)$ ]]; then
+    if ! kubectl get secret ngc-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+        warn "NGC (NVIDIA GPU Cloud) token secret not found"
+        warn "TensorRT-LLM examples require NGC authentication to pull container images"
+        warn ""
+
+        # Check for NGC_API_KEY environment variable first
+        if [ -n "${NGC_API_KEY:-}" ]; then
+            info "Found NGC_API_KEY environment variable, creating secret..."
+            if kubectl create secret docker-registry ngc-secret \
+                --docker-server=nvcr.io \
+                --docker-username='$oauthtoken' \
+                --docker-password="${NGC_API_KEY}" \
+                -n "${NAMESPACE}"; then
+                success "NGC token secret created from environment variable"
+            else
+                error "Failed to create NGC token secret"
+                exit 1
+            fi
+        else
+            warn "NGC API Key is required for TensorRT-LLM container access."
+            warn ""
+            warn "To obtain an NGC API Key:"
+            warn "  1. Register at https://ngc.nvidia.com"
+            warn "  2. Navigate to Setup → Generate API Key"
+            warn "  3. Copy the generated key"
+            warn ""
+            warn "Options:"
+            warn "  1. Set NGC_API_KEY environment variable and re-run this script"
+            warn "  2. Enter API key now to create the secret"
+            warn "  3. Skip (deployment will fail with ImagePullBackOff)"
+            warn ""
+            echo -n "Enter NGC API Key (or press Enter to skip): "
+            read -r ngc_token
+
+            if [ -n "$ngc_token" ]; then
+                info "Creating NGC token secret..."
+                if kubectl create secret docker-registry ngc-secret \
+                    --docker-server=nvcr.io \
+                    --docker-username='$oauthtoken' \
+                    --docker-password="${ngc_token}" \
+                    -n "${NAMESPACE}"; then
+                    success "NGC token secret created"
+                else
+                    error "Failed to create NGC token secret"
+                    exit 1
+                fi
+            else
+                warn "Proceeding without NGC token - TensorRT-LLM deployment will likely fail"
+                warn "To create the secret manually:"
+                warn "  kubectl create secret docker-registry ngc-secret \\"
+                warn "    --docker-server=nvcr.io \\"
+                warn "    --docker-username='\$oauthtoken' \\"
+                warn "    --docker-password=your-ngc-api-key -n ${NAMESPACE}"
+            fi
+        fi
+    else
+        success "NGC token secret found"
+    fi
+fi
+
+#---------------------------------------------------------------
+# ConfigMap Pre-Deployment (for trtllm)
+#---------------------------------------------------------------
+
+# Handle trtllm ConfigMap deployment
+if [[ "$EXAMPLE" == "trtllm" ]]; then
+    section "TensorRT-LLM Configuration Setup"
+    
+    # Ask user to select configuration variant
+    TRTLLM_CONFIG_VARIANT=""
+    if [ -n "${TRTLLM_CONFIG:-}" ]; then
+        TRTLLM_CONFIG_VARIANT="${TRTLLM_CONFIG}"
+        info "Using TensorRT-LLM config from environment: ${TRTLLM_CONFIG_VARIANT}"
+    else
+        info "Available TensorRT-LLM configurations:"
+        echo "  1. default - Balanced performance for most use cases"
+        echo "  2. high-performance - Optimized for maximum throughput and lowest latency"
+        echo ""
+        
+        while true; do
+            read -p "Select configuration (1-2, default is 1): " config_selection
+            config_selection=${config_selection:-1}  # Default to 1 if empty
+            
+            case $config_selection in
+                1)
+                    TRTLLM_CONFIG_VARIANT="default"
+                    break
+                    ;;
+                2)
+                    TRTLLM_CONFIG_VARIANT="high-performance"
+                    break
+                    ;;
+                *)
+                    error "Invalid selection. Please choose 1 or 2."
+                    ;;
+            esac
+        done
+    fi
+    
+    info "Selected TensorRT-LLM configuration: ${TRTLLM_CONFIG_VARIANT}"
+    
+    # Deploy the appropriate ConfigMap
+    CONFIGMAP_FILE="${EXAMPLE_DIR}/configmaps/trtllm-engine-config-${TRTLLM_CONFIG_VARIANT}.yaml"
+    
+    if [ ! -f "${CONFIGMAP_FILE}" ]; then
+        error "ConfigMap file not found: ${CONFIGMAP_FILE}"
+        exit 1
+    fi
+    
+    info "Deploying TensorRT-LLM engine configuration..."
+    info "ConfigMap file: ${CONFIGMAP_FILE}"
+    
+    if kubectl apply -f "${CONFIGMAP_FILE}" -n "${NAMESPACE}"; then
+        success "TensorRT-LLM ConfigMap deployed successfully"
+    else
+        error "Failed to deploy TensorRT-LLM ConfigMap"
+        exit 1
+    fi
+    
+    # Wait a moment for ConfigMap to be available
+    sleep 2
 fi
 
 #---------------------------------------------------------------

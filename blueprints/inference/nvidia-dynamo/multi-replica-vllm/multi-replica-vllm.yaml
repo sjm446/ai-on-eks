@@ -5,6 +5,7 @@ apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
   name: multi-replica-vllm
+  namespace: dynamo-cloud
 spec:
   services:
     Frontend:
@@ -31,17 +32,17 @@ spec:
       replicas: 1
       resources:
         requests:
-          cpu: "2"
-          memory: "4Gi"
+          cpu: "1"
+          memory: "2Gi"
         limits:
-          cpu: "2"
-          memory: "4Gi"
+          cpu: "1"
+          memory: "2Gi"
       envs:
         - name: DYN_LOG
           value: "debug"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh
@@ -95,13 +96,13 @@ spec:
               port: 9090
             periodSeconds: 10
             failureThreshold: 60
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh
             - -c
           args:
-            - python3 -m dynamo.vllm --model Qwen/Qwen3-0.6B --is-prefill-worker 2>&1 | tee /tmp/prefill.log
+            - "python3 -m dynamo.vllm --model Qwen/Qwen3-0.6B --is-prefill-worker 2>&1 | tee /tmp/prefill.log"
     DecodeWorker:
       envFromSecret: hf-token-secret
       livenessProbe:
@@ -149,10 +150,10 @@ spec:
               port: 9090
             periodSeconds: 10
             failureThreshold: 60
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh
             - -c
           args:
-            - python3 -m dynamo.vllm --model Qwen/Qwen3-0.6B 2>&1 | tee /tmp/decode.log
+            - "python3 -m dynamo.vllm --model Qwen/Qwen3-0.6B 2>&1 | tee /tmp/decode.log"

@@ -5,6 +5,7 @@ apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
   name: trtllm-disagg
+  namespace: dynamo-cloud
 spec:
   services:
     Frontend:
@@ -38,8 +39,10 @@ spec:
           cpu: "2"
           memory: "4Gi"
       extraPodSpec:
+        imagePullSecrets:
+          - name: ngc-secret
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/trtllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
           workingDir: /workspace/components/backends/trtllm
           command:
             - /bin/sh
@@ -82,8 +85,14 @@ spec:
         - name: DYN_SYSTEM_PORT
           value: "9090"
       extraPodSpec:
+        imagePullSecrets:
+          - name: ngc-secret
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
         mainContainer:
           startupProbe:
             httpGet:
@@ -92,22 +101,20 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 120  # Allow extra time for TensorRT compilation
-          image: nvcr.io/nvidia/ai-dynamo/trtllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
           workingDir: /workspace/components/backends/trtllm
+          command:
+            - /bin/sh
+            - -c
           args:
-            - "python3"
-            - "-m"
-            - "dynamo.trtllm"
-            - "--model-path"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--served-model-name"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--extra-engine-args"
-            - "engine_configs/decode.yaml"
-            - "--disaggregation-mode"
-            - "decode"
-            - "--disaggregation-strategy"
-            - "decode_first"
+            - "python3 -m dynamo.trtllm --model-path Qwen/Qwen3-0.6B --served-model-name Qwen/Qwen3-0.6B --extra-engine-args external_configs/decode.yaml --disaggregation-mode decode --disaggregation-strategy decode_first"
+          volumeMounts:
+            - name: decode-config
+              mountPath: /workspace/components/backends/trtllm/external_configs
+        volumes:
+          - name: decode-config
+            configMap:
+              name: trtllm-decode-config
     TRTLLMPrefillWorker:
       dynamoNamespace: trtllm-disagg
       envFromSecret: hf-token-secret
@@ -144,8 +151,14 @@ spec:
         - name: DYN_SYSTEM_PORT
           value: "9090"
       extraPodSpec:
+        imagePullSecrets:
+          - name: ngc-secret
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
         mainContainer:
           startupProbe:
             httpGet:
@@ -154,19 +167,17 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 120  # Allow extra time for TensorRT compilation
-          image: nvcr.io/nvidia/ai-dynamo/trtllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
           workingDir: /workspace/components/backends/trtllm
+          command:
+            - /bin/sh
+            - -c
           args:
-            - "python3"
-            - "-m"
-            - "dynamo.trtllm"
-            - "--model-path"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--served-model-name"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--extra-engine-args"
-            - "engine_configs/prefill.yaml"
-            - "--disaggregation-mode"
-            - "prefill"
-            - "--disaggregation-strategy"
-            - "decode_first"
+            - "python3 -m dynamo.trtllm --model-path Qwen/Qwen3-0.6B --served-model-name Qwen/Qwen3-0.6B --extra-engine-args external_configs/prefill.yaml --disaggregation-mode prefill --disaggregation-strategy decode_first"
+          volumeMounts:
+            - name: prefill-config
+              mountPath: /workspace/components/backends/trtllm/external_configs
+        volumes:
+          - name: prefill-config
+            configMap:
+              name: trtllm-prefill-config

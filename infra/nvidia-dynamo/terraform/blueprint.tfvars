@@ -7,11 +7,11 @@ enable_argocd       = true
 # Enable required infrastructure for Dynamo
 enable_aws_efs_csi_driver        = true
 # enable_kube_prometheus_stack     = true  # Use enable_ai_ml_observability_stack instead
-# enable_aws_efa_k8s_device_plugin = true  # Same as base - uncomment if needed
+enable_aws_efa_k8s_device_plugin = true  # Required for NVIDIA Dynamo high-performance networking
 enable_ai_ml_observability_stack = true
 
 # Dynamo configuration
-dynamo_stack_version = "v0.4.0"
+dynamo_stack_version = "v0.4.1"
 
 # Optional: Uncomment if needed for your use case
 # enable_mlflow_tracking = true

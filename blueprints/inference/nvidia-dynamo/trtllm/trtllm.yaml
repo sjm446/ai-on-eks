@@ -5,6 +5,7 @@ apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
   name: trtllm
+  namespace: dynamo-cloud
 spec:
   services:
     Frontend:
@@ -38,8 +39,10 @@ spec:
           cpu: "5"
           memory: "10Gi"
       extraPodSpec:
+        imagePullSecrets:
+          - name: ngc-secret
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/trtllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
           workingDir: /workspace/components/backends/trtllm
           command:
             - /bin/sh
@@ -82,9 +85,25 @@ spec:
         - name: DYN_SYSTEM_PORT
           value: "9090"
       extraPodSpec:
+        imagePullSecrets:
+          - name: ngc-secret
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+        # Volume definition for engine configuration from ConfigMap
+        volumes:
+          - name: engine-config-volume
+            configMap:
+              name: trtllm-engine-config-default  # Use trtllm-engine-config-high-performance for high-perf
+              items:
+                - key: agg.yaml
+                  path: agg.yaml
         mainContainer:
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
+          workingDir: /workspace/components/backends/trtllm
           startupProbe:
             httpGet:
               path: /health
@@ -92,15 +111,10 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 60
-          image: nvcr.io/nvidia/ai-dynamo/trtllm-runtime:0.4.0
-          workingDir: /workspace/components/backends/trtllm
+          # Volume mount for external configurations
+          volumeMounts:
+            - name: engine-config-volume
+              mountPath: /workspace/components/backends/trtllm/external_configs
+              readOnly: true
           args:
-            - "python3"
-            - "-m"
-            - "dynamo.trtllm"
-            - "--model-path"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--served-model-name"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--extra-engine-args"
-            - "engine_configs/agg.yaml"
+            - "python3 -m dynamo.trtllm --model-path Qwen/Qwen3-0.6B --served-model-name Qwen/Qwen3-0.6B --extra-engine-args external_configs/agg.yaml"

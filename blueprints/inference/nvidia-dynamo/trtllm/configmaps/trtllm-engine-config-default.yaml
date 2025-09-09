@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trtllm-engine-config-default
+  namespace: dynamo-cloud
+  labels:
+    app: trtllm
+    config-type: engine
+    variant: default
+data:
+  agg.yaml: |
+    # Default TensorRT-LLM Engine Configuration
+    # Based on the actual working configuration from dynamo/components/backends/trtllm/engine_configs/agg.yaml
+    tensor_parallel_size: 1
+    moe_expert_parallel_size: 1
+    enable_attention_dp: false
+    max_num_tokens: 8192
+    max_batch_size: 16
+    trust_remote_code: true
+    backend: pytorch
+    enable_chunked_prefill: true
+
+    kv_cache_config:
+      free_gpu_memory_fraction: 0.85
+
+    cuda_graph_config:
+      max_batch_size: 16

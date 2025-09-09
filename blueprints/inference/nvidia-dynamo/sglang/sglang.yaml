@@ -5,6 +5,7 @@ apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
   name: sglang
+  namespace: dynamo-cloud
 spec:
   services:
     Frontend:
@@ -38,7 +39,7 @@ spec:
           memory: "10Gi"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
           workingDir: /workspace/components/backends/sglang
           command: ["sh", "-c"]
           args:
@@ -80,19 +81,10 @@ spec:
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
           workingDir: /workspace/components/backends/sglang
+          command:
+            - /bin/sh
+            - -c
           args:
-            - "python3"
-            - "-m"
-            - "dynamo.sglang.worker"
-            - "--model-path"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--served-model-name"
-            - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-            - "--page-size"
-            - "16"
-            - "--tp"
-            - "1"
-            - "--trust-remote-code"
-            - "--skip-tokenizer-init"
+            - "python3 -m dynamo.sglang.worker --model-path deepseek-ai/DeepSeek-R1-Distill-Llama-8B --served-model-name deepseek-ai/DeepSeek-R1-Distill-Llama-8B --page-size 16 --tp 1 --trust-remote-code --skip-tokenizer-init"

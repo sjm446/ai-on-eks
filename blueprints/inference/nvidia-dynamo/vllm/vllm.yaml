@@ -5,6 +5,7 @@ apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
   name: vllm
+  namespace: dynamo-cloud
 spec:
   services:
     Frontend:
@@ -38,7 +39,7 @@ spec:
           memory: "2Gi"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh
@@ -68,11 +69,11 @@ spec:
         requests:
           cpu: "10"
           memory: "20Gi"
-          gpu: "1"
+          gpu: "2"
         limits:
           cpu: "10"
           memory: "20Gi"
-          gpu: "1"
+          gpu: "2"
       envs:
         - name: DYN_SYSTEM_ENABLED
           value: "true"
@@ -88,12 +89,12 @@ spec:
             httpGet:
               path: /health
               port: 9090
-            periodSeconds: 10
-            failureThreshold: 60
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+            periodSeconds: 60
+            failureThreshold: 300
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh
             - -c
           args:
-            - python3 -m dynamo.vllm --model Qwen/Qwen3-0.6B  2>&1 | tee /tmp/vllm.log
+            - "python3 -m dynamo.vllm --model Qwen/Qwen3-8B --tensor-parallel-size 2 2>&1 | tee /tmp/vllm.log"
