@@ -1,6 +1,6 @@
 # vLLM Example
 
-Deploy vLLM-based LLM serving with aggregated architecture using Dynamo v0.4.0.
+Deploy vLLM-based LLM serving with aggregated architecture using Dynamo v0.4.1.
 
 ## Architecture
 

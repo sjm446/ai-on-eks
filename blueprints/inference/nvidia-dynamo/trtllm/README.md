@@ -1,81 +1,200 @@
-# TensorRT-LLM External Configuration
+# TensorRT-LLM Example
 
-This directory contains the implementation for externalizing TensorRT-LLM engine configurations using Kubernetes ConfigMaps, allowing for runtime configuration switching without rebuilding container images.
+Deploy TensorRT-LLM-based LLM serving with maximum performance optimization using NVIDIA Dynamo v0.4.1.
 
-## Overview
+## Architecture
 
-The implementation provides two deployment approaches:
-
-1. **Standard Deployment** (`trtllm.yaml`) - Original deployment with embedded configuration
-2. **External Configuration Deployment** (`trtllm-with-external-config.yaml`) - Enhanced deployment with ConfigMap support
-
-## Directory Structure
-
+```text
+Client Requests → Frontend → TensorRT-LLM Worker (Aggregated + Optimized Kernels)
 ```
-blueprints/inference/nvidia-dynamo/trtllm/
-├── README.md                          # This guide
-├── trtllm.yaml                        # Original deployment (backward compatible)
-├── trtllm-with-external-config.yaml   # Enhanced deployment with ConfigMaps
-├── engine_configs/                    # Local configuration files
-│   ├── agg.yaml                      # Default configuration
-│   └── agg-high-performance.yaml     # High-performance variant
-└── configmaps/                       # Kubernetes ConfigMap manifests
-    ├── trtllm-engine-config-default.yaml
-    └── trtllm-engine-config-high-performance.yaml
-```
+
+This example demonstrates:
+- TensorRT-LLM backend integration with NVIDIA Dynamo
+- Maximum inference performance with custom CUDA kernels
+- External ConfigMap-based configuration management
+- OpenAI-compatible API serving (`/v1/chat/completions`, `/v1/models`)
+- Aggregated serving mode (prefill + decode in same worker)
+- G5 GPU node selection for cost-effective inference
+
+## Key Features
+
+### TensorRT-LLM Optimizations
+TensorRT-LLM provides industry-leading inference performance:
+- **Custom CUDA Kernels**: Hand-optimized kernels for maximum GPU utilization
+- **Memory Optimization**: Advanced KV cache management and memory pooling
+- **Quantization Support**: INT8, FP8, and mixed-precision inference
+- **Batching Efficiency**: Optimized dynamic batching for high throughput
+- **Low Latency**: Minimal overhead for real-time applications
+
+### External Configuration System
+This example uses Kubernetes ConfigMaps for flexible configuration management:
+- **Runtime Configuration Changes**: Switch between performance profiles without rebuilding
+- **Environment-Specific Settings**: Different configurations for dev/staging/production
+- **Version Control**: Track configuration changes separately from application code
+- **Easy Customization**: Create custom configurations for specific use cases
+
+## Prerequisites
+
+- Dynamo platform deployed in your EKS cluster
+- `dynamo-cloud` namespace with secrets configured
+- G5 GPU nodes available (at least 1 GPU with 24GB VRAM)
+- HuggingFace token secret configured
 
 ## Configuration Variants
 
-### Default Configuration (`agg.yaml`)
+This example includes two pre-configured performance profiles:
+
+### Default Configuration
 - **Use Case**: Balanced performance for most production workloads
-- **Batch Size**: 128
-- **Max Input Length**: 2048 tokens
-- **Memory Usage**: Conservative (85% KV cache)
-- **Precision**: float16 with float32 logits
-- **Features**: Standard plugins enabled, no quantization
+- **Batch Size**: 16 (conservative for stability)
+- **Max Tokens**: 8192
+- **Memory Usage**: 85% KV cache (safe allocation)
+- **Features**: Standard optimizations, chunked prefill enabled
 
-### High-Performance Configuration (`agg-high-performance.yaml`)
+### High-Performance Configuration
 - **Use Case**: Maximum throughput for high-load scenarios
-- **Batch Size**: 256
-- **Max Input Length**: 4096 tokens
-- **Memory Usage**: Aggressive (90% KV cache)
-- **Precision**: float16 throughout
-- **Features**: All optimizations enabled, INT8 weight quantization, FP8 KV cache
+- **Batch Size**: 32 (aggressive batching)
+- **Max Tokens**: 16384
+- **Memory Usage**: 90% KV cache (maximum utilization)
+- **Features**: All optimizations enabled, CUDA graphs
 
-## How the ConfigMap System Works
+## YAML Structure Explained
 
-The external configuration system uses Kubernetes ConfigMaps to store TensorRT-LLM engine configurations separately from the container image. This approach provides several benefits:
+### Frontend Configuration
+```yaml
+Frontend:
+  dynamoNamespace: trtllm           # Service discovery namespace
+  componentType: main               # HTTP API entry point
+  replicas: 1                       # Single frontend instance
+  resources:
+    requests:
+      cpu: "1"                      # Lightweight for request routing
+      memory: "2Gi"                 # Minimal memory for HTTP server
+  extraPodSpec:
+    nodeSelector:
+      karpenter.sh/nodepool: cpu-karpenter  # CPU-only node (cost effective)
+    mainContainer:
+      image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
+      workingDir: /workspace/components/backends/trtllm
+      command: ["/bin/sh", "-c"]
+      args: ["python3 -m dynamo.frontend --http-port 8000"]
+```
 
-- **Runtime Configuration Changes**: Switch between configurations without rebuilding containers
-- **Environment-Specific Settings**: Different configurations for development, staging, and production
-- **Version Control**: Track configuration changes separately from application code
-- **Flexibility**: Easy to create custom configurations for specific use cases
+### TensorRT-LLM Worker Configuration
+```yaml
+TRTLLMWorker:
+  dynamoNamespace: trtllm           # Service discovery namespace
+  componentType: worker             # Inference worker
+  replicas: 1                       # Single worker instance
+  envFromSecret: hf-token-secret    # HuggingFace authentication
+  resources:
+    requests:
+      cpu: "8"                      # High CPU for model operations
+      memory: "20Gi"                # Sufficient memory for model loading
+      gpu: "1"                      # Single GPU allocation
+  extraPodSpec:
+    nodeSelector:
+      karpenter.sh/nodepool: g5-gpu-karpenter  # G5 GPU nodes
+    volumes:
+    - name: engine-config-volume    # ConfigMap volume mount
+      configMap:
+        name: trtllm-engine-config-default
+        items:
+        - key: agg.yaml
+          path: agg.yaml
+    mainContainer:
+      image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
+      workingDir: /workspace/components/backends/trtllm
+      command: ["/bin/sh", "-c"]
+      args: ["python3 -m dynamo.trtllm --extra-engine-args external_configs/agg.yaml"]
+      volumeMounts:
+      - name: engine-config-volume
+        mountPath: /workspace/components/backends/trtllm/external_configs
+        readOnly: true
+```
 
-The system works by:
-1. ConfigMaps store engine configuration files as data
-2. The enhanced deployment mounts ConfigMaps as volumes
-3. TensorRT-LLM worker reads configuration from mounted files
-4. Configuration changes trigger pod restarts to apply new settings
+## ConfigMap Considerations
 
-## Quick Start
+### Why External ConfigMaps?
+TensorRT-LLM requires complex engine configurations that benefit from external management:
 
-### 1. Deploy ConfigMaps
+1. **Performance Tuning**: Different workloads need different optimization settings
+2. **Environment Flexibility**: Dev/staging/production can use different configurations
+3. **Runtime Updates**: Change configurations without rebuilding container images
+4. **Version Control**: Track configuration changes separately from application code
+
+### ConfigMap Structure
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trtllm-engine-config-default
+  namespace: dynamo-cloud
+data:
+  agg.yaml: |
+    tensor_parallel_size: 1
+    moe_expert_parallel_size: 1
+    enable_attention_dp: false
+    max_num_tokens: 8192
+    max_batch_size: 16
+    trust_remote_code: true
+    backend: pytorch
+    enable_chunked_prefill: true
+    kv_cache_config:
+      free_gpu_memory_fraction: 0.85
+    cuda_graph_config:
+      max_batch_size: 16
+```
+
+### Volume Mount Integration
+The ConfigMap is mounted as a volume in the worker pod:
+```yaml
+volumes:
+- name: engine-config-volume
+  configMap:
+    name: trtllm-engine-config-default
+    items:
+    - key: agg.yaml
+      path: agg.yaml
+
+volumeMounts:
+- name: engine-config-volume
+  mountPath: /workspace/components/backends/trtllm/external_configs
+  readOnly: true
+```
+
+## Deployment
+
+### Option 1: Using Deploy Script (Recommended)
 ```bash
-# Deploy individual configuration variants
+# Navigate to the blueprint directory
+cd blueprints/inference/nvidia-dynamo
+
+# Deploy TensorRT-LLM with interactive setup
+./deploy.sh trtllm
+
+# Or deploy directly
+kubectl apply -f trtllm/configmaps/
+kubectl apply -f trtllm/trtllm.yaml
+```
+
+### Option 2: Manual Deployment
+```bash
+# 1. Deploy ConfigMaps first
 kubectl apply -f configmaps/trtllm-engine-config-default.yaml
 kubectl apply -f configmaps/trtllm-engine-config-high-performance.yaml
+
+# 2. Deploy the TensorRT-LLM service
+kubectl apply -f trtllm.yaml
+
+# 3. Verify deployment
+kubectl get pods -n dynamo-cloud -l nvidia.com/dynamo-namespace=trtllm
 ```
 
-### 2. Deploy TRTLLMWorker with External Configuration
+### Switching Performance Profiles
 ```bash
-# Deploy with default configuration
-kubectl apply -f trtllm-with-external-config.yaml
-```
-
-### 3. Switch Configurations at Runtime
-```bash
-# Update to high-performance configuration
-kubectl patch DynamoGraphDeployment trtllm --type='merge' -p='
+# Switch to high-performance configuration
+kubectl patch dynamographdeployment trtllm -n dynamo-cloud --type='merge' -p='
 spec:
   services:
     TRTLLMWorker:
@@ -83,34 +202,179 @@ spec:
         volumes:
         - name: engine-config-volume
           configMap:
-            name: trtllm-engine-config-high-performance
-            items:
-            - key: agg.yaml
-              path: agg.yaml'
+            name: trtllm-engine-config-high-performance'
 
-# Restart pods to pick up new configuration
-kubectl rollout restart DynamoGraphDeployment/trtllm
+# Restart to apply new configuration
+kubectl rollout restart dynamographdeployment/trtllm -n dynamo-cloud
 ```
 
-## Advanced Configuration
+## Testing and Validation
 
-### Custom Engine Configuration
-1. Create a custom ConfigMap with your engine settings:
+### Health Check
+```bash
+# Check pod status
+kubectl get pods -n dynamo-cloud -l nvidia.com/dynamo-namespace=trtllm
+
+# Verify health endpoint
+kubectl port-forward svc/trtllm-frontend 8000:8000 -n dynamo-cloud &
+curl http://localhost:8000/health
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "endpoints": ["dyn://dynamo.backend.generate"],
+  "instances": [...]
+}
+```
+
+### API Testing
+```bash
+# Test chat completions
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen/Qwen3-0.6B",
+    "messages": [
+      {"role": "user", "content": "What is TensorRT-LLM?"}
+    ],
+    "max_tokens": 100,
+    "temperature": 0.7
+  }'
+
+# Test models endpoint
+curl http://localhost:8000/v1/models
+```
+
+### Performance Validation
+```bash
+# Monitor GPU utilization
+kubectl exec -it <trtllm-worker-pod> -n dynamo-cloud -- nvidia-smi
+
+# Check worker logs for performance metrics
+kubectl logs <trtllm-worker-pod> -n dynamo-cloud | grep -i "throughput\|latency"
+```
+
+## Monitoring
+
+### Key Metrics to Monitor
+- **GPU Utilization**: Should be >80% during inference
+- **Memory Usage**: Monitor KV cache utilization
+- **Throughput**: Tokens per second
+- **Latency**: Time to first token and total response time
+- **Batch Efficiency**: Actual vs configured batch sizes
+
+### Grafana Dashboards
+Access pre-configured dashboards:
+```bash
+kubectl port-forward -n kube-prometheus-stack svc/kube-prometheus-stack-grafana 3000:80
+# Navigate to Dynamo dashboards in Grafana
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Pod Fails to Start
+```bash
+# Check pod events
+kubectl describe pod <trtllm-worker-pod> -n dynamo-cloud
+
+# Check resource availability
+kubectl describe node <node-name>
+
+# Verify ConfigMap exists
+kubectl get configmap trtllm-engine-config-default -n dynamo-cloud
+```
+
+#### Configuration Not Loading
+```bash
+# Verify volume mount
+kubectl exec <trtllm-worker-pod> -n dynamo-cloud -- ls -la /workspace/components/backends/trtllm/external_configs/
+
+# Check configuration content
+kubectl exec <trtllm-worker-pod> -n dynamo-cloud -- cat /workspace/components/backends/trtllm/external_configs/agg.yaml
+```
+
+#### Performance Issues
+```bash
+# Check GPU memory usage
+kubectl exec <trtllm-worker-pod> -n dynamo-cloud -- nvidia-smi
+
+# Review worker logs for errors
+kubectl logs <trtllm-worker-pod> -n dynamo-cloud --tail=100
+
+# Switch to high-performance configuration if needed
+kubectl patch dynamographdeployment trtllm -n dynamo-cloud --type='merge' -p='
+spec:
+  services:
+    TRTLLMWorker:
+      extraPodSpec:
+        volumes:
+        - name: engine-config-volume
+          configMap:
+            name: trtllm-engine-config-high-performance'
+```
+
+### Debug Commands
+```bash
+# Get all TensorRT-LLM resources
+kubectl get all -n dynamo-cloud -l nvidia.com/dynamo-namespace=trtllm
+
+# Check DynamoGraphDeployment status
+kubectl describe dynamographdeployment trtllm -n dynamo-cloud
+
+# View detailed pod logs
+kubectl logs <trtllm-worker-pod> -n dynamo-cloud -f
+```
+
+## Performance Tuning
+
+### For Maximum Throughput
+- Use `trtllm-engine-config-high-performance` ConfigMap
+- Increase `max_batch_size` to 32 or higher
+- Enable CUDA graphs for reduced overhead
+- Use FP16 precision throughout
+
+### For Low Latency
+- Use smaller batch sizes (8-16)
+- Enable chunked prefill for faster first token
+- Optimize KV cache allocation
+- Consider speculative decoding
+
+### For Memory Efficiency
+- Reduce `free_gpu_memory_fraction` to 0.8 or lower
+- Use INT8 quantization if model supports it
+- Optimize `max_num_tokens` based on typical request sizes
+
+## Custom Configuration
+
+### Creating Custom ConfigMaps
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: trtllm-engine-config-custom
+  namespace: dynamo-cloud
 data:
   agg.yaml: |
-    max_batch_size: 64
-    max_input_len: 1024
-    # ... your custom settings
+    tensor_parallel_size: 1
+    max_batch_size: 24        # Custom batch size
+    max_num_tokens: 12288     # Custom token limit
+    trust_remote_code: true
+    backend: pytorch
+    enable_chunked_prefill: true
+    kv_cache_config:
+      free_gpu_memory_fraction: 0.8  # Conservative memory usage
+    cuda_graph_config:
+      max_batch_size: 24
 ```
 
-2. Update the deployment to use the custom ConfigMap:
+Apply and use:
 ```bash
-kubectl patch DynamoGraphDeployment trtllm --type='merge' -p='
+kubectl apply -f custom-config.yaml
+kubectl patch dynamographdeployment trtllm -n dynamo-cloud --type='merge' -p='
 spec:
   services:
     TRTLLMWorker:
@@ -121,114 +385,12 @@ spec:
             name: trtllm-engine-config-custom'
 ```
 
-### Environment-Based Configuration Selection
-The deployment supports environment variable-driven configuration selection:
+## Cleanup
 
-```yaml
-envs:
-  - name: TRTLLM_CONFIG_VARIANT
-    value: "high-performance"  # Options: default, high-performance
-```
-
-## Integration with Root Shell Scripts
-
-This TensorRT-LLM external configuration solution integrates seamlessly with the root-level shell scripts in the ai-on-eks repository:
-
-1. **Standard Deployment**: Use existing shell scripts with `trtllm.yaml` for embedded configurations
-2. **External Configuration**: Deploy ConfigMaps first, then use shell scripts with `trtllm-with-external-config.yaml`
-3. **Runtime Switching**: ConfigMaps can be updated independently of shell script deployments
-
-Example integration workflow:
 ```bash
-# 1. Deploy infrastructure using root shell scripts
-./install.sh --blueprint nvidia-dynamo
+# Remove TensorRT-LLM deployment
+kubectl delete dynamographdeployment trtllm -n dynamo-cloud
 
-# 2. Deploy TensorRT-LLM ConfigMaps
-kubectl apply -f blueprints/inference/nvidia-dynamo/trtllm/configmaps/
-
-# 3. Deploy TensorRT-LLM with external configuration
-kubectl apply -f blueprints/inference/nvidia-dynamo/trtllm/trtllm-with-external-config.yaml
+# Remove ConfigMaps
+kubectl delete configmap trtllm-engine-config-default trtllm-engine-config-high-performance -n dynamo-cloud
 ```
-
-## Backward Compatibility
-
-The original `trtllm.yaml` deployment remains fully functional and unchanged. Existing deployments will continue to work without modification.
-
-## Troubleshooting
-
-### Configuration Not Applied
-1. Verify ConfigMap exists: `kubectl get configmap`
-2. Check volume mount: `kubectl describe pod <trtllm-worker-pod>`
-3. Verify file content: `kubectl exec <pod> -- cat /workspace/components/backends/trtllm/engine_configs/agg.yaml`
-
-### Performance Issues
-1. For high throughput: Use `high-performance` variant
-2. For memory constraints: Use `default` variant with reduced batch sizes
-
-### Configuration Validation
-Test configuration validity before deployment:
-```bash
-# Validate YAML syntax
-kubectl apply --dry-run=client -f configmaps/trtllm-engine-config-default.yaml
-
-# Validate configuration parameters
-kubectl create job config-test --image=nvidia/tensorrt_llm:latest --dry-run=client -o yaml
-```
-
-## Migration Guide
-
-### From Embedded to External Configuration
-
-1. **Backup existing deployment**:
-   ```bash
-   kubectl get DynamoGraphDeployment trtllm -o yaml > trtllm-backup.yaml
-   ```
-
-2. **Deploy ConfigMaps**:
-   ```bash
-   kubectl apply -f configmaps/trtllm-engine-config-default.yaml
-   kubectl apply -f configmaps/trtllm-engine-config-high-performance.yaml
-   ```
-
-3. **Update deployment**:
-   ```bash
-   kubectl apply -f trtllm-with-external-config.yaml
-   ```
-
-4. **Verify operation**:
-   ```bash
-   kubectl get pods -l app=trtllm
-   kubectl logs <trtllm-worker-pod>
-   ```
-
-## Security Considerations
-
-- ConfigMaps are mounted read-only to prevent runtime modification
-- Use Kubernetes RBAC to control ConfigMap access
-- Consider using Secrets for sensitive configuration parameters
-- Validate configuration inputs to prevent injection attacks
-
-## Performance Tuning
-
-### Memory Optimization
-- Adjust `kv_cache_percent` based on available GPU memory
-- Monitor memory usage: `kubectl exec <pod> -- nvidia-smi`
-- Use appropriate `max_tokens_in_paged_kv_cache` values
-
-### Throughput Optimization
-- Increase `max_batch_size` for higher throughput
-- Enable `multi_block_mode` for better parallelization
-- Use INT8 quantization for faster inference
-
-### Latency Optimization
-- Reduce `max_batch_size` for lower latency
-- Enable `remove_input_padding` for variable-length sequences
-- Use speculative decoding for faster generation
-
-## Support
-
-For issues related to:
-- **Configuration**: Check this README and ConfigMap files
-- **Deployment**: Verify Kubernetes resources and logs  
-- **Performance**: Compare default vs high-performance configurations
-- **TensorRT-LLM**: Refer to NVIDIA TensorRT-LLM documentation

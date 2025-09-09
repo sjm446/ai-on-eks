@@ -166,7 +166,7 @@ Deploy your inference service using the simplified deployment script with prebui
 ```bash
 cd ../../blueprints/inference/nvidia-dynamo
 
-# Interactive menu to choose from 10+ examples
+# Interactive menu to choose from 9 examples
 ./deploy.sh
 
 # Or deploy specific examples directly
@@ -186,14 +186,13 @@ cd ../../blueprints/inference/nvidia-dynamo
 - **sglang-disagg**: SGLang disaggregated with RadixAttention
 - **trtllm-disagg**: TensorRT-LLM disaggregated serving
 - **kv-routing**: KV-aware intelligent routing
-- **sla-planner**: SLA-based autoscaling
 
 **Key Benefits of Prebuilt Containers:**
-- **No Build Required**: Uses official [NGC container images](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/collections/ai-dynamo) (v0.4.0)
+- **No Build Required**: Uses official [NGC container images](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/collections/ai-dynamo) (v0.4.1)
 - **Faster Deployment**: Skip 20+ minute build process
 - **Consistent Experience**: NVIDIA-tested and validated images
 - **Version Management**: Automatic version detection from `blueprint.tfvars`
-- **Override Support**: Use `DYNAMO_VERSION=v0.4.0 ./deploy.sh` to override version
+- **Override Support**: Use `DYNAMO_VERSION=v0.4.1 ./deploy.sh` to override version
 
 </CollapsibleContent>
 
@@ -221,7 +220,6 @@ These examples demonstrate advanced Dynamo features and are suitable for experim
 | **[sglang-disagg](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-dynamo/sglang-disagg)** | SGLang | Disaggregated | Memory optimization | RadixAttention + disaggregation |
 | **[trtllm-disagg](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-dynamo/trtllm-disagg)** | TensorRT-LLM | Disaggregated | Ultra-high performance | TRT-LLM + disaggregation |
 | **[kv-routing](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-dynamo/kv-routing)** | Multi-runtime | Intelligent routing | Cache optimization | KV-aware request routing |
-| **[sla-planner](https://github.com/awslabs/ai-on-eks/tree/main/blueprints/inference/nvidia-dynamo/sla-planner)** | Multi-runtime | Auto-scaling | Predictive scaling | SLA-based resource management |
 
 ### Example Highlights
 
@@ -254,6 +252,10 @@ These examples demonstrate advanced Dynamo features and are suitable for experim
 - Automatic load balancing and failover
 - Intelligent cache-aware request routing
 - Ideal for production workloads requiring high availability
+
+:::info Comprehensive Testing
+All 9 examples have been thoroughly tested and validated with on EKS clusters with GPU nodes. Each example includes proper health checks, OpenAI-compatible API endpoints, and production-ready configurations. See our [testing summary](https://github.com/awslabs/ai-on-eks/blob/main/NVIDIA_Dynamo_Testing_Summary.md) for detailed validation results.
+:::
 
 ## Test and Validate
 
@@ -342,25 +344,25 @@ The deployment automatically creates:
 The deployment automatically manages Dynamo versions with flexible override options:
 
 **Default Behavior:**
-- Reads version from `terraform/blueprint.tfvars` (`dynamo_stack_version = "v0.4.0"`)
+- Reads version from `terraform/blueprint.tfvars` (`dynamo_stack_version = "v0.4.1"`)
 - Automatically updates container image tags in YAML manifests
 - Creates temporary manifests without modifying source files
 
 **Override Options:**
 ```bash
 # Environment variable (highest priority)
-export DYNAMO_VERSION=v0.4.0
+export DYNAMO_VERSION=v0.4.1
 ./deploy.sh vllm
 
 # Inline override
-DYNAMO_VERSION=v0.4.0 ./deploy.sh sglang
+DYNAMO_VERSION=v0.4.1 ./deploy.sh sglang
 
 # Update terraform/blueprint.tfvars (persistent)
-dynamo_stack_version = "v0.4.0"
+dynamo_stack_version = "v0.4.1"
 ```
 
 **Supported Versions:**
-- **v0.4.0**: Current stable release (default)
+- **v0.4.1**: Current stable release (default)
 - Custom versions from private builds
 
 ### Custom Model Deployment
@@ -400,7 +402,7 @@ enable_dynamo_stack = true
 enable_argocd       = true
 
 # Dynamo platform version
-dynamo_stack_version = "v0.4.0"
+dynamo_stack_version = "v0.4.1"
 
 # Required infrastructure components
 enable_aws_efs_csi_driver        = true
@@ -646,9 +648,9 @@ This blueprint is designed for users who want:
 **📦 Container Images & Helm Charts:**
 - [Dynamo Collection (NGC)](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/collections/ai-dynamo): Complete collection of Dynamo resources
 - [Dynamo Platform Helm Chart](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/helm-charts/dynamo-platform): Official Kubernetes deployment
-- [vLLM Runtime Container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/vllm-runtime): vLLM backend (v0.4.0)
-- [SGLang Runtime Container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/sglang-runtime): SGLang backend (v0.4.0)
-- [TensorRT-LLM Runtime Container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/trtllm-runtime): TRT-LLM backend (v0.4.0)
+- [vLLM Runtime Container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/vllm-runtime): vLLM backend (v0.4.1)
+- [SGLang Runtime Container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/sglang-runtime): SGLang backend (v0.4.1)
+- [TensorRT-LLM Runtime Container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/trtllm-runtime): TRT-LLM backend (v0.4.1)
 
 ### AI-on-EKS Blueprint Resources
 

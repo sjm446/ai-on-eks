@@ -1,6 +1,6 @@
 # SGLang Example
 
-Deploy SGLang-based LLM serving with advanced RadixAttention caching using NVIDIA Dynamo v0.4.0.
+Deploy SGLang-based LLM serving with advanced RadixAttention caching using NVIDIA Dynamo v0.4.1.
 
 ## Architecture
 
