@@ -68,7 +68,7 @@ Use the provided helper script `install.sh` to run the terraform init and apply 
 
 
 ```bash
-./install .sh
+./install.sh
 ```
 
 Update local kubeconfig so we can access kubernetes cluster
@@ -149,10 +149,10 @@ Once you've ensured that all components are functioning properly, you can procee
 
 The first task, named the `uniref50-job.yaml`, involves downloading and partitioning the data to enhance processing efficiency. This task specifically retrieves the `uniref50 dataset` and organizes it within the FSx for Lustre Filesystem. This structured layout is designed for training, testing, and validation purposes. You can learn more about the uniref dataset [here](https://www.uniprot.org/help/uniref).
 
-To execute this job, navigate to the `examples\esm1nv` directory and deploy the `uniref50-job.yaml` manifest using the following commands:
+To execute this job, navigate to the `examples/esm1nv` directory and deploy the `uniref50-job.yaml` manifest using the following commands:
 
 ```bash
-cd examples/training
+cd examples/esm1nv
 kubectl apply -f uniref50-job.yaml
 ```
 
