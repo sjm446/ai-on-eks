@@ -13,23 +13,30 @@ spec:
       values: |
         # NVIDIA Dynamo Platform Configuration for ai-on-eks using NGC
         # Using minimal config - NGC chart defaults should work
-        
+
         # NGC authentication (required)
         dynamo-operator:
           imagePullSecrets:
             - name: docker-imagepullsecret
 
-        # etcd configuration - disable problematic features for EKS
+        # NATS configuration - use EFS for JetStream persistence
+        # Note: etcd inherits from global.storageClass, but NATS needs explicit setting
+        nats:
+          config:
+            jetstream:
+              fileStore:
+                pvc:
+                  storageClassName: efs-sc-dynamic
+
+        # etcd configuration - disable JWT auth and pre-upgrade hook
         etcd:
-          preUpgradeJob:
-            enabled: false
           auth:
-            rbac:
-              create: false
             token:
               enabled: false
-        
-        # Use EFS for shared storage
+          preUpgradeJob:
+            enabled: false
+
+        # Use EFS for shared storage (etcd inherits this, other components may too)
         global:
           storageClass: efs-sc-dynamic
   destination:
