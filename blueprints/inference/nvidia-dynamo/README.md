@@ -1,6 +1,6 @@
-# NVIDIA Dynamo v0.4.0 Inference Examples
+# NVIDIA Dynamo v0.4.1 Inference Examples
 
-This directory contains production-ready examples for deploying different inference backends using NVIDIA Dynamo v0.4.0 on Amazon EKS. These examples use official NGC prebuilt containers with `DynamoGraphDeployment` manifests for GitOps-based deployment via ArgoCD.
+This directory contains production-ready examples for deploying different inference backends using NVIDIA Dynamo v0.4.1 on Amazon EKS. These examples use official NGC prebuilt containers with `DynamoGraphDeployment` manifests for GitOps-based deployment via ArgoCD.
 
 ## Quick Start
 
@@ -88,12 +88,16 @@ kubectl get pods -n dynamo-cloud -l app=vllm -w
 
 ### Testing Deployments
 ```bash
-# Port forward service
-kubectl port-forward svc/vllm-frontend 8000:8000 -n dynamo-cloud
+# Port forward via Service (recommended) - enables both API and metrics access
+kubectl port-forward service/vllm-frontend 8000:8000 -n dynamo-cloud
 
-# Test health and models
+# Alternative: Direct deployment port-forward
+# kubectl port-forward deployment/vllm-frontend 8000:8000 -n dynamo-cloud
+
+# Test health, models, and metrics
 curl http://localhost:8000/health
 curl http://localhost:8000/v1/models
+curl http://localhost:8000/metrics  # Available via Service
 
 # Test chat completions (OpenAI compatible)
 curl -X POST http://localhost:8000/v1/chat/completions \
@@ -105,9 +109,9 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 
 ### NGC Container Images
 All examples use official NVIDIA NGC prebuilt containers with full source code:
-- `nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0`
-- `nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.0`
-- `nvcr.io/nvidia/ai-dynamo/trtllm-runtime:0.4.0`
+- `nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1`
+- `nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1`
+- `nvcr.io/nvidia/ai-dynamo/trtllm-runtime:0.4.1`
 
 **Key Features:**
 - ✅ **Full Source Included**: All Python code available at `/workspace/`
@@ -200,7 +204,7 @@ spec:
         nodeSelector:
           karpenter.sh/nodepool: cpu-karpenter
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           args: ["python3", "-m", "dynamo.frontend", "--http-port", "8000"]
 
@@ -218,7 +222,7 @@ spec:
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           args: ["python3", "-m", "dynamo.vllm", "--model", "Qwen/Qwen3-0.6B"]
 ```
 
@@ -457,7 +461,7 @@ spec:
         nodeSelector:
           karpenter.sh/nodepool: cpu-karpenter  # CPU-only frontend
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           args: ["python3", "-m", "dynamo.frontend", "--http-port", "8000"]
 
@@ -479,7 +483,7 @@ spec:
           operator: Exists
           effect: NoSchedule
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
           workingDir: /workspace/components/backends/vllm
           args: ["python3", "-m", "dynamo.vllm", "--model", "your-model-here"]
 ```
@@ -703,6 +707,180 @@ Workers expose Prometheus-compatible metrics:
 # Check worker metrics
 kubectl port-forward vllm-worker-xxx 9090:9090 -n dynamo-cloud
 curl http://localhost:9090/metrics
+```
+
+## External Access
+
+The deploy script automatically creates a Kubernetes Service for each deployment, enabling both API access and Prometheus metrics collection. For production external access, you have several options:
+
+### Option 1: AWS Load Balancer Controller + Service (Recommended)
+
+The most efficient approach uses the existing Service with AWS Load Balancer Controller:
+
+```bash
+# Option A: Network Load Balancer (NLB) - Best Performance
+kubectl annotate service ${EXAMPLE}-frontend \
+  service.beta.kubernetes.io/aws-load-balancer-type="nlb" \
+  service.beta.kubernetes.io/aws-load-balancer-target-type="ip" \
+  -n dynamo-cloud
+
+# Option B: Application Load Balancer (ALB) - More Features  
+kubectl annotate service ${EXAMPLE}-frontend \
+  service.beta.kubernetes.io/aws-load-balancer-type="external" \
+  service.beta.kubernetes.io/aws-load-balancer-target-type="ip" \
+  service.beta.kubernetes.io/aws-load-balancer-scheme="internet-facing" \
+  -n dynamo-cloud
+```
+
+**Key Benefits:**
+- ✅ **Optimal Performance**: `target-type: ip` bypasses kube-proxy for direct pod targeting
+- ✅ **Automatic Service Discovery**: Uses existing Service created by deploy script
+- ✅ **Health Check Integration**: Leverages Service health checks
+- ✅ **Rolling Update Support**: Seamless updates through Service abstraction
+
+### Option 2: Ingress with ALB
+
+For advanced routing and TLS termination:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${EXAMPLE}-ingress
+  namespace: dynamo-cloud
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip                    # Key for performance
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
+    # Optional: SSL/TLS
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:region:account:certificate/cert-id
+spec:
+  rules:
+  - host: ${EXAMPLE}.your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ${EXAMPLE}-frontend
+            port:
+              number: 8000
+```
+
+### Option 3: Gateway API (Advanced)
+
+For complex routing scenarios, use NVIDIA's Inference Gateway:
+
+```bash
+# See Dynamo documentation: deploy/inference-gateway/README.md
+# Supports advanced features like traffic splitting, canary deployments
+```
+
+### Load Balancer Best Practices
+
+#### **Target Type Comparison**
+| Target Type | Performance | Use Case | Notes |
+|-------------|-------------|----------|-------|
+| `ip` | ✅ **Highest** | Production | Direct pod targeting, bypasses kube-proxy |
+| `instance` | ⚠️ Medium | Legacy | Goes through kube-proxy, extra hop |
+
+#### **Load Balancer Type Selection**
+| Type | Latency | Cost | Features | Best For |
+|------|---------|------|----------|----------|
+| **NLB** | ✅ **Ultra-low** | 💰 Lower | L4, preserves client IP | High-throughput inference |
+| **ALB** | ⚠️ Higher | 💰💰 Higher | L7, path routing, WAF | Complex routing, TLS termination |
+
+#### **Session Affinity for Stateful Backends**
+
+Some backends benefit from session affinity (sticky sessions):
+
+```yaml
+# For SGLang with RadixAttention caching
+annotations:
+  alb.ingress.kubernetes.io/load-balancer-attributes: |
+    stickiness.enabled=true,
+    stickiness.lb_cookie.duration_seconds=3600
+```
+
+**Backends that benefit from affinity:**
+- **SGLang**: RadixAttention prefix caching
+- **Multi-turn conversations**: Context preservation
+- **Custom caching**: Application-level state
+
+### External Access Examples by Deployment
+
+Replace `${EXAMPLE}` with your deployment name (vllm, sglang, trtllm, etc.):
+
+```bash
+# Quick NLB setup for any example
+EXAMPLE="vllm"  # or sglang, trtllm, etc.
+kubectl annotate service ${EXAMPLE}-frontend \
+  service.beta.kubernetes.io/aws-load-balancer-type="nlb" \
+  service.beta.kubernetes.io/aws-load-balancer-target-type="ip" \
+  -n dynamo-cloud
+
+# Get external endpoint
+kubectl get service ${EXAMPLE}-frontend -n dynamo-cloud
+```
+
+### Security Considerations
+
+#### **Private Load Balancer**
+```yaml
+annotations:
+  service.beta.kubernetes.io/aws-load-balancer-internal: "true"  # Internal-only
+  service.beta.kubernetes.io/aws-load-balancer-subnets: "subnet-private1,subnet-private2"
+```
+
+#### **Network Policies**
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ${EXAMPLE}-frontend-netpol
+  namespace: dynamo-cloud
+spec:
+  podSelector:
+    matchLabels:
+      nvidia.com/dynamo-component: Frontend
+      nvidia.com/dynamo-namespace: ${EXAMPLE}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-system  # Only allow from ingress namespace
+    ports:
+    - protocol: TCP
+      port: 8000
+```
+
+#### **TLS Best Practices**
+```yaml
+annotations:
+  alb.ingress.kubernetes.io/ssl-redirect: '443'
+  alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+  alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:region:account:certificate/cert-id
+```
+
+### Monitoring External Access
+
+The Service created by the deploy script enables both API access and Prometheus monitoring:
+
+```bash
+# Check service endpoints
+kubectl get endpoints ${EXAMPLE}-frontend -n dynamo-cloud
+
+# Verify load balancer health checks
+kubectl describe service ${EXAMPLE}-frontend -n dynamo-cloud
+
+# Monitor via ServiceMonitor (automatically created)
+curl http://<load-balancer-url>/metrics
 ```
 
 ## Troubleshooting

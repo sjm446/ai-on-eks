@@ -38,7 +38,7 @@ Frontend:
     nodeSelector:
       karpenter.sh/nodepool: cpu-karpenter  # CPU-only node (cost effective)
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
       workingDir: /workspace/components/backends/vllm
       args: ["python3", "-m", "dynamo.frontend", "--http-port", "8000"]
   livenessProbe:
@@ -76,7 +76,7 @@ VllmWorker:
       operator: Exists
       effect: NoSchedule
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
       workingDir: /workspace/components/backends/vllm
       args: ["python3", "-m", "dynamo.vllm", "--model", "Qwen/Qwen3-0.6B", "2>&1", "|", "tee", "/tmp/vllm.log"]
   envs:
@@ -162,8 +162,12 @@ This example uses `Qwen/Qwen3-0.6B` which is a small model suitable for testing.
 Once deployed, test the vLLM service:
 
 ```bash
-# Port forward to the frontend service
-kubectl port-forward svc/vllm-frontend 8000:8000 -n dynamo-cloud
+# Port-forward the frontend via Service (created automatically by deploy script)
+# Port forward via Service (recommended) - enables both API access and metrics collection
+kubectl port-forward service/vllm-frontend 8000:8000 -n dynamo-cloud
+
+# Alternative: Direct deployment access
+# kubectl port-forward deployment/vllm-frontend 8000:8000 -n dynamo-cloud
 
 # Test health endpoint
 curl http://localhost:8000/health
@@ -173,16 +177,22 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "Qwen/Qwen3-0.6B",
-    "messages": [
-      {"role": "user", "content": "What is artificial intelligence?"}
-    ],
+    "messages": [{"role": "user", "content": "What is artificial intelligence?"}],
     "max_tokens": 100,
     "temperature": 0.7
   }'
 
-# Test models endpoint
+# List models
 curl http://localhost:8000/v1/models
 ```
+
+### External Access
+
+For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments, including:
+- AWS Load Balancer Controller setup
+- Ingress configurations  
+- Best practices for target-type and performance optimization
+
 
 ## Monitoring
 

@@ -81,7 +81,11 @@ Test performance after initial compilation:
 
 ```bash
 # Port forward to frontend
-kubectl port-forward svc/trtllm-disagg-frontend 8000:8000 -n dynamo-cloud
+# Port forward via Service (recommended) - enables both API access and metrics collection
+kubectl port-forward service/trtllm-disagg-frontend 8000:8000 -n dynamo-cloud
+
+# Alternative: Direct deployment access
+# kubectl port-forward deployment/trtllm-disagg-frontend 8000:8000 -n dynamo-cloud
 
 # Wait for compilation to complete (check logs first)
 kubectl logs -n dynamo-cloud -l app=trtllm-disagg -f | grep -E "(compilation|ready|engine)"
@@ -234,6 +238,13 @@ kubectl describe pods -n dynamo-cloud -l app=trtllm-disagg | grep -A 5 -B 5 "Eve
 # Check resource allocation
 kubectl get pods -n dynamo-cloud -l app=trtllm-disagg -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.phase}{"\t"}{.spec.containers[0].resources}{"\n"}{end}'
 ```
+
+## External Access
+
+For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments.
+
+**Note**: This applies to all Dynamo deployments including disaggregated architectures.
+
 
 ## Cleanup
 

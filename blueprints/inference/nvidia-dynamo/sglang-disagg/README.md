@@ -64,7 +64,11 @@ Test SGLang's prefix tree caching:
 
 ```bash
 # Port forward to frontend
-kubectl port-forward svc/sglang-disagg-frontend 8000:8000 -n dynamo-cloud
+# Port forward via Service (recommended) - enables both API access and metrics collection
+kubectl port-forward service/sglang-disagg-frontend 8000:8000 -n dynamo-cloud
+
+# Alternative: Direct deployment access
+# kubectl port-forward deployment/sglang-disagg-frontend 8000:8000 -n dynamo-cloud
 
 # Send requests with shared prefixes to trigger RadixAttention
 SYSTEM_PROMPT="You are an expert in artificial intelligence and machine learning."
@@ -236,6 +240,13 @@ kubectl logs -n dynamo-cloud -l app=sglang-disagg -f | grep -E "hit.rate|cache.e
 1. **Queue Backlog**: Scale up prefill workers if queue grows
 2. **NIXL Failures**: Check GPU connectivity and memory allocation
 3. **Worker Discovery**: Verify ETCD registration and NATS communication
+
+## External Access
+
+For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments.
+
+**Note**: This applies to all Dynamo deployments including disaggregated architectures.
+
 
 ## Cleanup
 

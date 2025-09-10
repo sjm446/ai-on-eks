@@ -72,7 +72,11 @@ Test with common system prompts to see cache reuse:
 
 ```bash
 # Port forward to frontend
-kubectl port-forward svc/kv-routing-frontend 8000:8000 -n dynamo-cloud
+# Port forward via Service (recommended) - enables both API access and metrics collection
+kubectl port-forward service/kv-routing-frontend 8000:8000 -n dynamo-cloud
+
+# Alternative: Direct deployment access
+# kubectl port-forward deployment/kv-routing-frontend 8000:8000 -n dynamo-cloud
 
 # Send requests with shared system prompt
 for i in {1..5}; do
@@ -224,6 +228,51 @@ kubectl patch dynamographdeployment kv-routing -n dynamo-cloud -p \
 ### Load Balancing
 - **Utilization Spread**: Keeps worker utilization within 20% of each other
 - **Hotspot Prevention**: Avoids overloading high-cache workers
+
+## External Access
+
+For production-grade external access to your KV-routing service:
+
+### Option 1: Kubernetes Service + AWS Load Balancer
+Create a Service and use AWS Load Balancer Controller:
+
+```bash
+# Create a Service for the frontend
+kubectl expose deployment kv-routing-frontend --port=8000 --target-port=8000 --type=LoadBalancer -n dynamo-cloud
+
+# Use Network Load Balancer for consistent routing performance
+kubectl annotate service kv-routing-frontend service.beta.kubernetes.io/aws-load-balancer-type="nlb" -n dynamo-cloud
+```
+
+### Option 2: Ingress with ALB + Session Affinity
+Use AWS Load Balancer Controller with session affinity for optimal cache reuse:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kv-routing-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=3600
+spec:
+  rules:
+  - host: kv-routing.your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kv-routing-frontend
+            port:
+              number: 8000
+```
+
+**Important**: For KV-aware routing to work optimally, consider session affinity to ensure related requests reach the same frontend instance for better cache coordination.
 
 ## Cleanup
 

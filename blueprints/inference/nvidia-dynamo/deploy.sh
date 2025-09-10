@@ -437,17 +437,30 @@ fi
 # Wait a moment for resources to be created
 sleep 3
 
-# Deploy ServiceMonitor for metrics collection
-SERVICEMONITOR_FILE="${SCRIPT_DIR}/servicemonitor-template.yaml"
-if [ -f "${SERVICEMONITOR_FILE}" ]; then
-    info "Deploying ServiceMonitor for Prometheus metrics collection..."
-    if kubectl apply -f "${SERVICEMONITOR_FILE}"; then
-        success "ServiceMonitor deployed successfully"
+# Deploy ServiceMonitor and Service for metrics collection
+info "Setting up Prometheus metrics collection for ${EXAMPLE}..."
+
+SERVICEMONITOR_TEMPLATE="${SCRIPT_DIR}/servicemonitor-template.yaml"
+
+if [ -f "${SERVICEMONITOR_TEMPLATE}" ]; then
+    # Create temporary servicemonitor manifest
+    TEMP_SERVICEMONITOR="/tmp/${EXAMPLE}-servicemonitor.yaml"
+    sed "s/EXAMPLE_NAME/${EXAMPLE}/g" "${SERVICEMONITOR_TEMPLATE}" > "${TEMP_SERVICEMONITOR}"
+
+    # Deploy ServiceMonitor and Service
+    info "Creating Service and ServiceMonitor for ${EXAMPLE} metrics..."
+    info "Note: ServiceMonitor will scrape frontend pods via Service on /metrics endpoint"
+    if kubectl apply -f "${TEMP_SERVICEMONITOR}"; then
+        success "Service and ServiceMonitor created successfully"
     else
-        warn "Failed to deploy ServiceMonitor, continuing..."
+        warn "Failed to create ServiceMonitor, metrics collection may not work"
     fi
+
+    # Clean up temporary files
+    rm -f "${TEMP_SERVICEMONITOR}"
 else
-    warn "ServiceMonitor template not found at ${SERVICEMONITOR_FILE}"
+    warn "ServiceMonitor template not found, skipping metrics setup"
+    warn "Missing: ${SERVICEMONITOR_TEMPLATE}"
 fi
 
 #---------------------------------------------------------------
@@ -496,12 +509,16 @@ echo ""
 case "$EXAMPLE" in
     "hello-world")
         echo "Test the hello-world service:"
-        echo "  kubectl port-forward svc/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
+        echo "  kubectl port-forward deployment/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
         echo "  curl http://localhost:8000/health"
         ;;
     "vllm"|"sglang"|"trtllm")
         echo "Test the ${EXAMPLE} service:"
-        echo "  kubectl port-forward svc/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
+        echo "  # Use Service (recommended) - enables both API access and metrics collection"
+        echo "  kubectl port-forward service/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
+        echo "  # Alternative: Direct deployment port-forward"
+        echo "  # kubectl port-forward deployment/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
+        echo ""
         echo "  curl http://localhost:8000/health"
         echo "  curl http://localhost:8000/v1/models"
         echo ""
@@ -509,15 +526,27 @@ case "$EXAMPLE" in
         echo "  curl -X POST http://localhost:8000/v1/chat/completions \\"
         echo "    -H 'Content-Type: application/json' \\"
         echo "    -d '{\"model\": \"model-name\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'"
+        echo ""
+        echo "Test metrics (via Service):"
+        echo "  curl http://localhost:8000/metrics"
         ;;
     "multi-replica-vllm")
         echo "Test the multi-replica-vllm service:"
-        echo "  kubectl port-forward svc/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
+        echo "  # Use Service for load balancing across replicas"
+        echo "  kubectl port-forward service/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
         echo "  curl http://localhost:8000/health"
         echo "  # Multi-replica deployment may take longer to fully initialize"
         ;;
 esac
 
+echo ""
+echo "External access (production):"
+echo "  # See README.md 'External Access' section for complete guide"
+echo "  # Quick NLB setup:"
+echo "  kubectl annotate service ${EXAMPLE}-frontend \\"
+echo "    service.beta.kubernetes.io/aws-load-balancer-type=\"nlb\" \\"
+echo "    service.beta.kubernetes.io/aws-load-balancer-target-type=\"ip\" \\"
+echo "    -n ${NAMESPACE}"
 echo ""
 echo "Cleanup when done:"
 echo "  kubectl delete dynamographdeployment ${EXAMPLE} -n ${NAMESPACE}"

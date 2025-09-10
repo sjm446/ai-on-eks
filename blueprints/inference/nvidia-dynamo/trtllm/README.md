@@ -216,7 +216,11 @@ kubectl rollout restart dynamographdeployment/trtllm -n dynamo-cloud
 kubectl get pods -n dynamo-cloud -l nvidia.com/dynamo-namespace=trtllm
 
 # Verify health endpoint
-kubectl port-forward svc/trtllm-frontend 8000:8000 -n dynamo-cloud &
+# Port forward via Service (recommended) - enables both API access and metrics collection
+kubectl port-forward service/trtllm-frontend 8000:8000 -n dynamo-cloud
+
+# Alternative: Direct deployment access
+# kubectl port-forward deployment/trtllm-frontend 8000:8000 -n dynamo-cloud &
 curl http://localhost:8000/health
 ```
 
@@ -384,6 +388,15 @@ spec:
           configMap:
             name: trtllm-engine-config-custom'
 ```
+
+## External Access
+
+For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments.
+
+**TensorRT-LLM-Specific Notes:**
+- Use NLB (Network Load Balancer) to minimize latency and maximize TensorRT optimizations
+- Consider `target-type: ip` for optimal performance
+- See root README.md for complete setup instructions
 
 ## Cleanup
 

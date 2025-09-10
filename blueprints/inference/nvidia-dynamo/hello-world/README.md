@@ -51,7 +51,7 @@ Frontend:
     nodeSelector:
       karpenter.sh/nodepool: cpu-karpenter  # CPU-only nodes
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
       workingDir: /workspace/examples/runtime/hello_world/
       args: ["python3", "client.py"]
   livenessProbe:
@@ -84,7 +84,7 @@ HelloWorldWorker:
     nodeSelector:
       karpenter.sh/nodepool: cpu-karpenter  # CPU-only nodes
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0
+      image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
       workingDir: /workspace/examples/runtime/hello_world/
       args: ["python3", "hello_world.py", "2>&1", "|", "tee", "/tmp/hello_world.log"]
   readinessProbe:
@@ -295,6 +295,49 @@ kubectl describe pod <frontend-pod> -n dynamo-cloud | grep -i pending
 - **Startup Time**: Should complete in under 2 minutes
 - **Resource Usage**: Minimal CPU/memory consumption
 - **Network**: All communication via internal cluster networking
+
+## External Access
+
+For production-grade external access to your hello-world service:
+
+### Option 1: Kubernetes Service + AWS Load Balancer
+Create a Service and use AWS Load Balancer Controller:
+
+```bash
+# Create a Service for the frontend
+kubectl expose deployment hello-world-frontend --port=8000 --target-port=8000 --type=LoadBalancer -n dynamo-cloud
+
+# Or use AWS Load Balancer Controller with annotations for ALB
+kubectl annotate service hello-world-frontend service.beta.kubernetes.io/aws-load-balancer-type="nlb" -n dynamo-cloud
+```
+
+### Option 2: Ingress with ALB
+Use AWS Load Balancer Controller for Application Load Balancer:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  rules:
+  - host: hello-world.your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hello-world-frontend
+            port:
+              number: 8000
+```
+
+**Note**: The hello-world example is primarily for testing internal Dynamo functionality. For production inference workloads, consider the other examples (vLLM, SGLang, TensorRT-LLM).
 
 ## Cleanup
 

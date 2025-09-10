@@ -53,7 +53,7 @@ Frontend:
     nodeSelector:
       karpenter.sh/nodepool: cpu-karpenter  # CPU-only node
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.0
+      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
       workingDir: /workspace/components/backends/sglang
       args:
         # Clear namespace for clean startup
@@ -85,7 +85,7 @@ SGLangWorker:
       operator: Exists
       effect: NoSchedule
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.0
+      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
       workingDir: /workspace/components/backends/sglang
       args:
         - "python3"
@@ -176,7 +176,11 @@ This example uses `deepseek-ai/DeepSeek-R1-Distill-Llama-8B` which demonstrates 
 ### Basic Health Check
 ```bash
 # Port forward to frontend
-kubectl port-forward svc/sglang-frontend 8000:8000 -n dynamo-cloud
+# Port forward via Service (recommended) - enables both API access and metrics collection
+kubectl port-forward service/sglang-frontend 8000:8000 -n dynamo-cloud
+
+# Alternative: Direct deployment access
+# kubectl port-forward deployment/sglang-frontend 8000:8000 -n dynamo-cloud
 
 # Test health endpoint
 curl http://localhost:8000/health
@@ -337,6 +341,15 @@ kubectl logs <sglang-worker-pod> -n dynamo-cloud | grep -i "page-size"
 - Use smaller models (e.g., Qwen3-0.6B)
 - Enable aggressive caching with larger cache sizes
 - Use on-demand instances for consistent performance
+
+## External Access
+
+For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments.
+
+**SGLang-Specific Notes:**
+- RadixAttention caching benefits from session affinity (sticky sessions)
+- Consider enabling ALB sticky sessions for multi-turn conversations
+- See root README.md for complete setup instructions
 
 ## Cleanup
 

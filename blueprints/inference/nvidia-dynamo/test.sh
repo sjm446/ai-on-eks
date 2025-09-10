@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #---------------------------------------------------------------
-# NVIDIA Dynamo v0.4.0 Example Testing Script
+# NVIDIA Dynamo v0.4.1 Example Testing Script
 #
 # Simple testing script for deployed Dynamo examples.
 # Tests health, metrics, and API endpoints based on example type.
@@ -310,12 +310,20 @@ case "$EXAMPLE" in
         info "Testing chat completions endpoint..."
         COMPLETIONS_URL="${BASE_URL}/v1/chat/completions"
 
-        # Determine model name based on example
-        case "$EXAMPLE" in
-            "vllm"|"multinode-vllm"|"vllm-disagg"|"kv-routing") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
-            "sglang"|"trtllm"|"sglang-disagg"|"trtllm-disagg") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
-            *) MODEL_NAME="default" ;;
-        esac
+        # Dynamically get the first available model from /v1/models
+        MODEL_NAME=$(curl -s "$MODELS_URL" 2>/dev/null | jq -r '.data[0].id' 2>/dev/null || echo "")
+        
+        if [ -z "$MODEL_NAME" ] || [ "$MODEL_NAME" = "null" ]; then
+            # Fallback to example-based model names if dynamic detection fails
+            case "$EXAMPLE" in
+                "vllm"|"multinode-vllm"|"vllm-disagg"|"kv-routing") MODEL_NAME="Qwen/Qwen3-8B" ;;
+                "sglang"|"trtllm"|"sglang-disagg"|"trtllm-disagg") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
+                *) MODEL_NAME="default" ;;
+            esac
+            warn "Could not detect model dynamically, using fallback: ${MODEL_NAME}"
+        else
+            success "Detected model from /v1/models endpoint: ${MODEL_NAME}"
+        fi
 
         CHAT_PAYLOAD=$(cat <<EOF
 {
