@@ -60,7 +60,7 @@ This architecture provides flexibility to choose between cost-optimized inferenc
 high-throughput GPU inference based on your specific requirements, all while maintaining elastic scalability through
 Kubernetes and Karpenter.
 
-![Architecture Diagram](image/architecture.png)
+![Architecture Diagram](image/architecture.jpg)
 
 ## Architecture Steps
 
