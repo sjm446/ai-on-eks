@@ -329,9 +329,9 @@ case "$EXAMPLE" in
 {
     "model": "${MODEL_NAME}",
     "messages": [
-        {"role": "user", "content": "Hello! Please respond with just 'Hi there!'"}
+        {"role": "user", "content": "What is quantum computing and what are its parallels to analogue and digital computing? Explain Like I am 5 years old."}
     ],
-    "max_tokens": 10,
+    "max_tokens": 500,
     "temperature": 0.1
 }
 EOF

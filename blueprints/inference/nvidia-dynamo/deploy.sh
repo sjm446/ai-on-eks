@@ -437,6 +437,42 @@ fi
 # Wait a moment for resources to be created
 sleep 3
 
+# Wait for pods to be ready
+info "Waiting for ${EXAMPLE} pods to be ready..."
+info "This may take several minutes for the first deployment (image pull + model loading)..."
+
+# Wait for DynamoGraphDeployment to be ready first
+TIMEOUT=600  # 10 minutes timeout
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    if kubectl get dynamographdeployment "${EXAMPLE}" -n "${NAMESPACE}" -o jsonpath='{.status.state}' 2>/dev/null | grep -q "successful"; then
+        success "DynamoGraphDeployment is ready"
+        break
+    fi
+
+    if [ $((ELAPSED % 30)) -eq 0 ]; then
+        info "Still waiting for DynamoGraphDeployment to be ready... (${ELAPSED}s elapsed)"
+        kubectl get dynamographdeployment "${EXAMPLE}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[*].message}' 2>/dev/null || echo "Status not available yet"
+    fi
+
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+done
+
+if [ $ELAPSED -ge $TIMEOUT ]; then
+    warn "Timeout waiting for DynamoGraphDeployment to be ready"
+    warn "Continuing with service creation, but pods may not be ready yet"
+else
+    # Additional wait for pods to be fully ready
+    info "Waiting for all pods to be ready..."
+    if kubectl wait --for=condition=ready pod -l "nvidia.com/dynamo-namespace=${EXAMPLE}" -n "${NAMESPACE}" --timeout=300s 2>/dev/null; then
+        success "All pods are ready"
+    else
+        warn "Some pods may not be ready yet, but continuing with service creation"
+        kubectl get pods -n "${NAMESPACE}" -l "nvidia.com/dynamo-namespace=${EXAMPLE}" 2>/dev/null || true
+    fi
+fi
+
 # Deploy ServiceMonitor and Service for metrics collection
 info "Setting up Prometheus metrics collection for ${EXAMPLE}..."
 
