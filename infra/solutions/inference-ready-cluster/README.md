@@ -556,6 +556,21 @@ You can now visit http://localhost:3000 and log in with username: `admin`, passw
 The solution includes an inference dashboard
 available [here](http://localhost:3000/d/bec31e71-3ac5-4133-b2e3-b9f75c8ab56c/inference-dashboard?orgId=1&refresh=5s).
 
+## Troubleshooting
+
+Common issues and solutions:
+
+1. **Node Group Creation**: Ensure proper IAM permissions for node group creation
+2. **GPU Detection**: Verify NVIDIA device plugin is running on GPU nodes
+3. **Neuron Setup**: Check AWS Neuron device plugin for Inferentia/Trainium nodes
+4. **Resource Limits**: Monitor cluster resource usage and adjust node groups accordingly
+5. **Pods are pending**: Many of the models require GPU resources. Make sure you have
+   appropriate [service quotas](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-resource-limits.html) for the
+   instance you are requesting.
+6. **Model downloading failures**: Check that the Hugging Face token is correct
+7. **Pods are restarting**: Check that the model fits on the GPU being used
+
+
 ## Cleanup the Environment
 
 When you are done using the environment, you can delete all its resources by running the following command (assuming the
