@@ -75,7 +75,6 @@ const config = {
         items: [
           { type: 'doc', docId: 'infra/ai-ml/index', position: 'left', label: 'Infrastructure' },
           { type: 'doc', docId: 'blueprints/index', position: 'left', label: 'Blueprints' },
-          { type: 'doc', docId: 'resources/intro', position: 'left', label: 'Resources' },
           { type: 'doc', docId: 'guidance/index', position: 'left', label: 'Guidance' },
           { href: 'https://github.com/awslabs/ai-on-eks', label: 'GitHub', position: 'right' },
         ],
