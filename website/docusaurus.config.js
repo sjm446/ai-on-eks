@@ -73,7 +73,7 @@ const config = {
                     src: 'img/header-icon.png',
                 },
                 items: [
-                    {type: 'doc', docId: 'infra/ai-ml/index', position: 'left', label: 'Infrastructure'},
+                    {type: 'doc', docId: 'infra/index', position: 'left', label: 'Infrastructure'},
                     {type: 'doc', docId: 'blueprints/index', position: 'left', label: 'Blueprints'},
                     {type: 'doc', docId: 'guidance/index', position: 'left', label: 'Guidance'},
                     {href: 'https://github.com/awslabs/ai-on-eks', label: 'GitHub', position: 'right'},
@@ -114,6 +114,11 @@ const config = {
                 if (existingPath.includes('/docs/guidance')) {
                     return [
                         existingPath.replace('/docs/guidance', '/docs/resources'),
+                    ];
+                }
+                if (existingPath.includes('/docs/infra')) {
+                    return [
+                        existingPath.replace('/docs/infra', '/docs/infra/ai-ml'),
                     ];
                 }
                 return undefined; // Return a falsy value: no redirect created
