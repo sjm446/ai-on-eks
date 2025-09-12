@@ -6,7 +6,7 @@ const FeatureList = [
     {
         title: 'Infrastructure',
         Svg: require('@site/static/img/infra.svg').default,
-        link: "/ai-on-eks/docs/infra/ai-ml",
+        link: "/ai-on-eks/docs/infra",
         description: (
             <div>
                 Validated infrastructure for the latest generation of Artificial Intelligence workloads on EKS.
