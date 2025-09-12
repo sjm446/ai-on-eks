@@ -13,7 +13,7 @@
 - [Quick Start Guide](#quick-start-guide)
     - [Important Setup Instructions](#-important-setup-instructions)
     - [Deploy the Infrastructure](#deploy-the-infrastructure)
-      - [Validate the Deployment](#validate-the-deployment)
+        - [Validate the Deployment](#validate-the-deployment)
     - [Deploying Models](#deploying-models)
         - [Prerequisites](#prerequisites)
         - [Create a Hugging Face Token](#how-to-create-a-hugging-face-token)
@@ -491,7 +491,7 @@ spec:
         - name: vllm
           image: "vllm/vllm-openai:v0.9.1"
           imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c"]
+          command: [ "/bin/sh", "-c" ]
           args:
             - vllm serve NousResearch/Llama-3.2-1B --gpu-memory-utilization 0.8 --max-model-len 8192 --max-num-batched-tokens 8192 --max-num-seqs 4 --max-parallel-loading-workers 2 --pipeline-parallel-size 1 --tensor-parallel-size 1 --tokenizer-pool-size 4
           env:
@@ -531,7 +531,6 @@ spec:
             medium: Memory
 ```
 
-
 Please take a look at all the different deployment options in
 the [inference charts readme](../../../blueprints/inference/inference-charts/README.md).
 
@@ -558,18 +557,339 @@ available [here](http://localhost:3000/d/bec31e71-3ac5-4133-b2e3-b9f75c8ab56c/in
 
 ## Troubleshooting
 
-Common issues and solutions:
+This section covers common issues you may encounter when deploying and operating the inference-ready EKS cluster, along
+with detailed solutions and diagnostic steps.
 
-1. **Node Group Creation**: Ensure proper IAM permissions for node group creation
-2. **GPU Detection**: Verify NVIDIA device plugin is running on GPU nodes
-3. **Neuron Setup**: Check AWS Neuron device plugin for Inferentia/Trainium nodes
-4. **Resource Limits**: Monitor cluster resource usage and adjust node groups accordingly
-5. **Pods are pending**: Many of the models require GPU resources. Make sure you have
-   appropriate [service quotas](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-resource-limits.html) for the
-   instance you are requesting.
-6. **Model downloading failures**: Check that the Hugging Face token is correct
-7. **Pods are restarting**: Check that the model fits on the GPU being used
+### Deployment Issues
 
+#### 1. Terraform Apply Failures
+
+**Symptoms:**
+
+- Terraform fails during `terraform apply` with resource creation errors
+- Module-specific failures during sequential deployment
+
+**Common Causes & Solutions:**
+
+**Insufficient AWS Permissions:**
+
+```bash
+# Verify your AWS credentials and permissions
+aws sts get-caller-identity
+aws iam get-user
+
+# Required permissions include:
+# - EKS cluster creation and management
+# - EC2 instance management
+# - VPC and networking resources
+# - IAM role creation and attachment
+# - KMS key management
+```
+
+**Service Quota Limits:**
+
+```bash
+# Check EC2 service quotas
+aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A  # Running On-Demand instances
+aws service-quotas get-service-quota --service-code ec2 --quota-code L-34B43A08  # Running On-Demand G instances
+aws service-quotas get-service-quota --service-code ec2 --quota-code L-6E869C2A  # Running On-Demand Inf instances
+
+# Request quota increases if needed
+aws service-quotas request-service-quota-increase --service-code ec2 --quota-code L-34B43A08 --desired-value 32
+```
+
+**Region Availability:**
+
+```bash
+# Verify instance types are available in your region
+aws ec2 describe-instance-type-offerings --location-type availability-zone --filters Name=instance-type,Values=g5.xlarge,inf2.xlarge
+```
+
+#### 2. EKS Cluster Creation Issues
+
+**Symptoms:**
+
+- EKS cluster fails to create or becomes stuck in "CREATING" state
+- Node groups fail to join the cluster
+
+**Diagnostic Steps:**
+
+```bash
+# Check cluster status
+aws eks describe-cluster --name inference-cluster --region us-west-2
+```
+
+**Common Solutions:**
+
+- Ensure VPC has sufficient IP addresses across 4 availability zones
+- Verify NAT Gateway creation in public subnets
+- Check security group configurations allow required EKS communication
+
+### Node and Pod Issues
+
+#### 3. Pods Stuck in Pending State
+
+**Symptoms:**
+
+- Inference workloads remain in "Pending" status
+- Karpenter not provisioning nodes
+
+**Diagnostic Commands:**
+
+```bash
+# Check pod events and resource requests
+kubectl describe pod <pod-name> -n <namespace>
+
+# Check Karpenter logs
+kubectl logs -n karpenter deployment/karpenter
+
+# Check available nodes and their capacity
+kubectl get nodes -o wide
+kubectl describe nodes
+```
+
+**Common Causes & Solutions:**
+
+**Insufficient GPU/Neuron Quotas:**
+
+```bash
+# Verify Karpenter NodePool configurations
+kubectl get nodepool -o yaml
+```
+
+#### 4. GPU Detection and Device Plugin Issues
+
+**Symptoms:**
+
+- GPU nodes show 0 allocatable GPUs
+- NVIDIA device plugin not running
+
+**Diagnostic Steps:**
+
+```bash
+# Verify GPU visibility on nodes
+kubectl get nodes -o json | jq '.items[] | {name: .metadata.name, gpus: .status.allocatable["nvidia.com/gpu"]}'
+
+# Check node labels
+kubectl get nodes --show-labels | grep gpu
+```
+
+**Solutions:**
+
+```bash
+# Restart NVIDIA device plugin if needed
+kubectl delete pods -n nvidia-device-plugin -l app.kubernetes.io/name=nvidia-device-plugin
+```
+
+#### 5. AWS Neuron Setup Issues
+
+**Symptoms:**
+
+- Neuron devices not detected on inf2/trn1 instances
+- Neuron device plugin failing
+
+**Diagnostic Commands:**
+
+```bash
+# Check Neuron device plugin
+kubectl get pods -n kube-system | grep neuron
+
+# Verify Neuron devices
+kubectl get nodes -o json | jq '.items[] | {name: .metadata.name, neuron: .status.allocatable["aws.amazon.com/neuron"]}'
+
+# Check Neuron scheduler
+kubectl get pods -n kube-system | grep my-scheduler
+```
+
+**Solutions:**
+
+```bash
+# Verify Neuron runtime installation
+kubectl describe node <inf2-node> | grep neuron
+
+# Check Neuron device plugin logs
+kubectl logs -n kube-system <neuron-device-plugin-pod>
+```
+
+### Model Deployment Issues
+
+#### 6. Model Download Failures
+
+**Symptoms:**
+
+- Pods fail to start with image pull or model download errors
+- Hugging Face authentication failures
+
+**Diagnostic Steps:**
+
+```bash
+# Check pod logs for download errors
+kubectl logs <pod-name> -n <namespace>
+
+# Verify Hugging Face token secret
+kubectl get secret hf-token -o yaml
+kubectl get secret hf-token -o jsonpath='{.data.token}' | base64 -d
+```
+
+**Solutions:**
+
+```bash
+# Recreate Hugging Face token secret
+kubectl delete secret hf-token
+kubectl create secret generic hf-token --from-literal=token=<your-hf-token>
+
+# Check internet connectivity from pods
+kubectl run test-pod --image=curlimages/curl -it --rm -- curl -I https://huggingface.co
+```
+
+#### 7. Out of Memory (OOM) Issues
+
+**Symptoms:**
+
+- Pods getting killed with OOMKilled status
+- Models failing to load completely
+
+**Diagnostic Commands:**
+
+```bash
+# Check pod resource usage
+kubectl top pods -n <namespace>
+
+# Check node memory usage
+kubectl top nodes
+
+# Review pod events for OOM kills
+kubectl get events --field-selector reason=OOMKilling
+```
+
+**Solutions:**
+
+```bash
+# Increase instance type to get larger GPU
+# Consider using larger instance types or model sharding
+```
+
+### Networking and Load Balancer Issues
+
+#### 8. Service Connectivity Problems
+
+**Symptoms:**
+
+- Cannot access inference endpoints
+- Load balancer not provisioning
+
+**Diagnostic Steps:**
+
+```bash
+# Check service status
+kubectl get svc -A
+
+# Check AWS Load Balancer Controller
+kubectl logs -n kube-system deployment/aws-load-balancer-controller
+
+# Verify security groups and NACLs
+aws ec2 describe-security-groups --filters "Name=group-name,Values=*inference-cluster*"
+```
+
+**Solutions:**
+
+```bash
+# Restart AWS Load Balancer Controller
+kubectl rollout restart deployment/aws-load-balancer-controller -n kube-system
+
+# Check ingress annotations and configurations
+kubectl describe ingress <ingress-name>
+```
+
+### Monitoring and Observability Issues
+
+#### 9. Prometheus/Grafana Not Working
+
+**Symptoms:**
+
+- Monitoring dashboards not accessible
+- Metrics not being collected
+
+**Diagnostic Commands:**
+
+```bash
+# Check monitoring stack pods
+kubectl get pods -n monitoring
+
+# Check Prometheus targets
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090
+# Navigate to http://localhost:9090/targets
+
+# Check Grafana access
+kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+# Navigate to http://localhost:3000
+```
+
+**Solutions:**
+
+```bash
+# Restart monitoring components
+kubectl rollout restart deployment/kube-prometheus-stack-grafana -n monitoring
+
+# Check service monitors
+kubectl get servicemonitor -A
+```
+
+### Performance and Scaling Issues
+
+#### 10. Slow Model Inference
+
+**Symptoms:**
+
+- High latency in model responses
+- Poor throughput performance
+
+**Diagnostic Steps:**
+
+```bash
+# Check resource utilization
+kubectl top pods -n <namespace> --containers
+
+# Monitor GPU utilization (if using GPUs)
+kubectl exec -it <pod-name> -- nvidia-smi
+```
+
+**Solutions:**
+
+- Verify model is using appropriate hardware acceleration
+- Check if multiple models are competing for resources
+- Optimize model parameters for latency
+- Scale up model and use load balancing
+
+### General Debugging Commands
+
+```bash
+# Get cluster information
+kubectl cluster-info
+kubectl get nodes -o wide
+
+# Check all system pods
+kubectl get pods -A | grep -v Running
+
+# View recent events
+kubectl get events --sort-by='.lastTimestamp' -A
+
+# Check Karpenter provisioning
+kubectl logs -n karpenter deployment/karpenter --tail=100
+
+# Verify EKS add-ons
+aws eks describe-addon --cluster-name inference-cluster --addon-name vpc-cni
+```
+
+### Getting Additional Help
+
+If you continue to experience issues:
+
+1. **Check AWS Service Health**: Visit the [AWS Service Health Dashboard](https://status.aws.amazon.com/)
+2. **Review CloudWatch Logs**: Check EKS control plane logs in CloudWatch
+3. **Consult Documentation**: Refer to
+   the [EKS Troubleshooting Guide](https://docs.aws.amazon.com/eks/latest/userguide/troubleshooting.html)
+4. **Community Support**: Post questions in the [AI on EKS GitHub Issues](https://github.com/awslabs/ai-on-eks/issues)
 
 ## Cleanup the Environment
 
@@ -586,4 +906,5 @@ installation script. Note, it will not remove anything that was created in S3 or
 directly created by the deployment. You will need to remove them yourself to not incur any further potential costs.
 
 ## License
+
 This solution is licensed under the Apache-2.0 License, please find the [License here](../../../LICENSE)
