@@ -883,6 +883,155 @@ kubectl describe service ${EXAMPLE}-frontend -n dynamo-cloud
 curl http://<load-balancer-url>/metrics
 ```
 
+## Known Issues and Workarounds
+
+### Dynamo Namespace Collision Issue
+
+**Issue**: When deploying multiple DynamoGraphDeployments (e.g., vllm and sglang) in the same Kubernetes namespace, workers may not properly isolate their Dynamo logical namespaces, leading to cross-contamination between deployments.
+
+**Symptoms**:
+- Frontend discovering models from other deployments (e.g., vllm frontend seeing sglang's DeepSeek model)
+- Health endpoints showing workers from multiple namespaces with namespace "dynamo" instead of their specific namespace
+- Duplicate metrics collector registration errors
+- Stream routing failures and generation timeouts
+
+**Root Cause**: 
+Workers read `DYNAMO_NAMESPACE` environment variable, but the Dynamo operator was setting `DYN_NAMESPACE`. This caused all workers to default to the fallback namespace "dynamo", creating cross-contamination.
+
+**Current Workaround Applied**:
+
+1. **Environment Variable Fix**: All worker components now explicitly set `DYNAMO_NAMESPACE`:
+
+```yaml
+# Applied to all worker components
+envs:
+  - name: DYNAMO_NAMESPACE
+    value: "deployment-name"  # Matches dynamoNamespace field
+```
+
+2. **Namespace Clearing**: Frontend components clear their namespace cache on startup:
+
+```yaml
+# Applied to sglang frontend (vllm was missing this)
+args:
+  - "python3 -m dynamo.sglang.utils.clear_namespace --namespace deployment-name && python3 -m dynamo.frontend --http-port=8000"
+```
+
+3. **Model Filtering** (Additional isolation):
+
+```yaml
+# Optional: Restrict frontend to specific models
+envs:
+  - name: DYN_MODEL_FILTER
+    value: "specific-model-name"
+  - name: DYN_NAMESPACE_ISOLATION
+    value: "true"
+```
+
+**Verification**:
+```bash
+# Check namespace isolation is working
+kubectl port-forward svc/vllm-frontend 8001:8000 -n dynamo-cloud &
+kubectl port-forward svc/sglang-frontend 8002:8000 -n dynamo-cloud &
+
+# vllm should only show Qwen model
+curl http://localhost:8001/health | jq '.instances[].namespace' | sort -u
+
+# sglang should only show DeepSeek model  
+curl http://localhost:8002/health | jq '.instances[].namespace' | sort -u
+```
+
+**Status**: 
+- ✅ **Fixed in**: vllm, sglang, hello-world deployments
+- ⚠️ **Pending**: Other blueprint deployments may need the same DYNAMO_NAMESPACE fix
+- 🔍 **Under Investigation**: Complete namespace isolation across all deployment types
+
+## Deployment Components
+
+### What deploy.sh Creates
+
+The `deploy.sh` script creates three Kubernetes resources for each deployment:
+
+1. **DynamoGraphDeployment** (DGD): The main inference deployment
+2. **Kubernetes Service**: LoadBalancer service for API access and service discovery
+3. **ServiceMonitor**: Prometheus monitoring configuration for metrics collection
+
+```bash
+./deploy.sh vllm
+# Creates:
+# - DynamoGraphDeployment: vllm
+# - Service: vllm-frontend (port 8000)
+# - ServiceMonitor: vllm-frontend-monitor (scrapes port 8000/metrics)
+```
+
+### Service and Monitoring Integration
+
+Each deployment gets a Kubernetes Service that enables:
+
+- **API Access**: Port 8000 for OpenAI-compatible endpoints
+- **Metrics Collection**: Port 8000/metrics for Prometheus scraping
+- **Service Discovery**: DNS resolution within cluster
+- **Load Balancing**: Across multiple frontend replicas (if scaled)
+
+**Service Template**:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${EXAMPLE}-frontend
+  namespace: dynamo-cloud
+  labels:
+    app: ${EXAMPLE}-frontend
+spec:
+  selector:
+    nvidia.com/dynamo-namespace: ${EXAMPLE}
+    nvidia.com/dynamo-component: Frontend
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+```
+
+**ServiceMonitor for Prometheus**:
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ${EXAMPLE}-frontend-monitor
+  namespace: dynamo-cloud
+spec:
+  selector:
+    matchLabels:
+      app: ${EXAMPLE}-frontend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+```
+
+## Testing Deployments
+
+### test.sh Capabilities
+
+The `test.sh` script provides interactive testing of deployed examples:
+
+```bash
+./test.sh                    # Interactive menu to select deployment
+./test.sh vllm              # Test specific deployment
+./test.sh sglang --verbose  # Test with detailed output
+```
+
+**Current Features**:
+- 🔍 **Deployment Detection**: Automatically finds available DynamoGraphDeployments
+- 🌐 **Port Forwarding**: Sets up kubectl port-forward to frontend service
+- 🏥 **Health Checking**: Verifies /health endpoint responds correctly
+- 📋 **Model Listing**: Shows available models via /v1/models endpoint
+- 💬 **Chat Testing**: Sends test chat completion request
+- 📊 **Metrics Access**: Displays metrics endpoint for monitoring integration
+
+
+
 ## Troubleshooting
 
 ### Common Issues
