@@ -102,13 +102,20 @@ print_banner "DYNAMO ${DYNAMO_VERSION} EXAMPLE DEPLOYMENT"
 
 AVAILABLE_EXAMPLES=(
     "hello-world:Simple CPU-only example for testing Dynamo functionality"
-    "vllm:vLLM-based LLM serving with aggregated architecture"
-    "sglang:SGLang-based LLM serving with advanced caching"
-    "trtllm:TensorRT-LLM optimized inference (requires NGC authentication)"
+    "vllm-aggregated-default:vLLM aggregated serving with default settings (small models)"
+    "vllm-aggregated-70b:vLLM aggregated serving Llama 3.3 70B FP8 model with 8x L4 GPUs"
+    "vllm-disaggregated-default:vLLM disaggregated serving with default settings (separate prefill/decode workers)"
+    "vllm-disaggregated-70b:vLLM disaggregated serving Llama 3.3 70B FP8 model with 4+4 L4 GPUs"
+    "sglang-aggregated-default:SGLang aggregated serving with advanced caching (small models)"
+    "sglang-disaggregated-default:SGLang disaggregated serving with RadixAttention (small models)"
+    "sglang-disaggregated-70b:SGLang disaggregated serving Llama 3.3 70B FP8 model with 4+4 L4 GPUs"
+    "trtllm-aggregated-default:TensorRT-LLM aggregated inference with default settings (requires NGC authentication)"
+    "trtllm-aggregated-high-performance:TensorRT-LLM aggregated optimized for maximum throughput (requires NGC authentication)"
+    "trtllm-aggregated-70b:TensorRT-LLM aggregated serving Llama 3.3 70B FP8 model with 8x L4 GPUs (requires NGC authentication)"
+    "trtllm-disaggregated-default:TensorRT-LLM disaggregated serving with default settings (requires NGC authentication)"
+    "trtllm-disaggregated-high-performance:TensorRT-LLM disaggregated serving optimized for throughput (requires NGC authentication)"
+    "trtllm-disaggregated-70b:TensorRT-LLM disaggregated serving Llama 3.3 70B FP8 model with 4+4 L4 GPUs (requires NGC authentication)"
     "multi-replica-vllm:Multi-replica vLLM deployment with KV routing and high availability"
-    "vllm-disagg:vLLM disaggregated serving (separate prefill/decode workers)"
-    "sglang-disagg:SGLang disaggregated serving with RadixAttention"
-    "trtllm-disagg:TensorRT-LLM disaggregated serving for maximum performance (requires NGC authentication)"
     "kv-routing:KV-aware routing demo with multiple workers (improved configuration)"
 )
 
@@ -141,7 +148,7 @@ EXAMPLE=""
 if [ $# -gt 0 ]; then
     EXAMPLE="$1"
     # Validate provided example
-    VALID_EXAMPLES=("hello-world" "vllm" "sglang" "trtllm" "multi-replica-vllm" "vllm-disagg" "sglang-disagg" "trtllm-disagg" "kv-routing")
+    VALID_EXAMPLES=("hello-world" "vllm-aggregated-default" "vllm-aggregated-70b" "vllm-disaggregated-default" "vllm-disaggregated-70b" "sglang-aggregated-default" "sglang-disaggregated-default" "sglang-disaggregated-70b" "trtllm-aggregated-default" "trtllm-aggregated-high-performance" "trtllm-aggregated-70b" "trtllm-disaggregated-default" "trtllm-disaggregated-high-performance" "trtllm-disaggregated-70b" "multi-replica-vllm" "kv-routing")
     if [[ ! " ${VALID_EXAMPLES[@]} " =~ " ${EXAMPLE} " ]]; then
         error "Invalid example: ${EXAMPLE}"
         info "Available examples: ${VALID_EXAMPLES[*]}"
@@ -170,9 +177,61 @@ else
     info "Selected example: ${EXAMPLE}"
 fi
 
+# Determine example directory and manifest file based on new structure
+get_example_path() {
+    local example="$1"
+    case "$example" in
+        "vllm-aggregated-default")
+            echo "vllm/aggregated/default"
+            ;;
+        "vllm-aggregated-70b")
+            echo "vllm/aggregated/70b"
+            ;;
+        "vllm-disaggregated-default")
+            echo "vllm/disaggregated/default"
+            ;;
+        "vllm-disaggregated-70b")
+            echo "vllm/disaggregated/70b"
+            ;;
+        "sglang-aggregated-default")
+            echo "sglang/aggregated/default"
+            ;;
+        "sglang-disaggregated-default")
+            echo "sglang/disaggregated/default"
+            ;;
+        "sglang-disaggregated-70b")
+            echo "sglang/disaggregated/70b"
+            ;;
+        "trtllm-aggregated-default")
+            echo "trtllm/aggregated/default"
+            ;;
+        "trtllm-aggregated-high-performance")
+            echo "trtllm/aggregated/high-performance"
+            ;;
+        "trtllm-aggregated-70b")
+            echo "trtllm/aggregated/70b"
+            ;;
+        "trtllm-disaggregated-default")
+            echo "trtllm/disaggregated/default"
+            ;;
+        "trtllm-disaggregated-high-performance")
+            echo "trtllm/disaggregated/high-performance"
+            ;;
+        "trtllm-disaggregated-70b")
+            echo "trtllm/disaggregated/70b"
+            ;;
+        *)
+            # For other examples (hello-world, multi-replica-vllm, kv-routing)
+            echo "$example"
+            ;;
+    esac
+}
+
 # Set example directory and manifest file
-EXAMPLE_DIR="${SCRIPT_DIR}/${EXAMPLE}"
+EXAMPLE_PATH=$(get_example_path "$EXAMPLE")
+EXAMPLE_DIR="${SCRIPT_DIR}/${EXAMPLE_PATH}"
 MANIFEST_FILE="${EXAMPLE_DIR}/${EXAMPLE}.yaml"
+DEPLOYMENT_NAME="${EXAMPLE}"
 
 # Create temporary manifest with correct version if needed
 # This allows using different Dynamo versions without modifying the example YAML files
@@ -285,7 +344,7 @@ if [[ "$EXAMPLE" =~ ^(vllm|sglang|trtllm|multi-replica-vllm|vllm-disagg|sglang-d
 fi
 
 # Check for NGC token secret (for TensorRT-LLM examples)
-if [[ "$EXAMPLE" =~ ^(trtllm|trtllm-disagg)$ ]]; then
+if [[ "$EXAMPLE" =~ ^(trtllm-aggregated-default|trtllm-aggregated-high-performance|trtllm-aggregated-70b|trtllm-disaggregated-default|trtllm-disaggregated-high-performance|trtllm-disaggregated-70b)$ ]]; then
     if ! kubectl get secret ngc-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
         warn "NGC (NVIDIA GPU Cloud) token secret not found"
         warn "TensorRT-LLM examples require NGC authentication to pull container images"
@@ -346,68 +405,7 @@ if [[ "$EXAMPLE" =~ ^(trtllm|trtllm-disagg)$ ]]; then
     fi
 fi
 
-#---------------------------------------------------------------
-# ConfigMap Pre-Deployment (for trtllm)
-#---------------------------------------------------------------
 
-# Handle trtllm ConfigMap deployment
-if [[ "$EXAMPLE" == "trtllm" ]]; then
-    section "TensorRT-LLM Configuration Setup"
-    
-    # Ask user to select configuration variant
-    TRTLLM_CONFIG_VARIANT=""
-    if [ -n "${TRTLLM_CONFIG:-}" ]; then
-        TRTLLM_CONFIG_VARIANT="${TRTLLM_CONFIG}"
-        info "Using TensorRT-LLM config from environment: ${TRTLLM_CONFIG_VARIANT}"
-    else
-        info "Available TensorRT-LLM configurations:"
-        echo "  1. default - Balanced performance for most use cases"
-        echo "  2. high-performance - Optimized for maximum throughput and lowest latency"
-        echo ""
-        
-        while true; do
-            read -p "Select configuration (1-2, default is 1): " config_selection
-            config_selection=${config_selection:-1}  # Default to 1 if empty
-            
-            case $config_selection in
-                1)
-                    TRTLLM_CONFIG_VARIANT="default"
-                    break
-                    ;;
-                2)
-                    TRTLLM_CONFIG_VARIANT="high-performance"
-                    break
-                    ;;
-                *)
-                    error "Invalid selection. Please choose 1 or 2."
-                    ;;
-            esac
-        done
-    fi
-    
-    info "Selected TensorRT-LLM configuration: ${TRTLLM_CONFIG_VARIANT}"
-    
-    # Deploy the appropriate ConfigMap
-    CONFIGMAP_FILE="${EXAMPLE_DIR}/configmaps/trtllm-engine-config-${TRTLLM_CONFIG_VARIANT}.yaml"
-    
-    if [ ! -f "${CONFIGMAP_FILE}" ]; then
-        error "ConfigMap file not found: ${CONFIGMAP_FILE}"
-        exit 1
-    fi
-    
-    info "Deploying TensorRT-LLM engine configuration..."
-    info "ConfigMap file: ${CONFIGMAP_FILE}"
-    
-    if kubectl apply -f "${CONFIGMAP_FILE}" -n "${NAMESPACE}"; then
-        success "TensorRT-LLM ConfigMap deployed successfully"
-    else
-        error "Failed to deploy TensorRT-LLM ConfigMap"
-        exit 1
-    fi
-    
-    # Wait a moment for ConfigMap to be available
-    sleep 2
-fi
 
 #---------------------------------------------------------------
 # Deployment
@@ -445,14 +443,14 @@ info "This may take several minutes for the first deployment (image pull + model
 TIMEOUT=600  # 10 minutes timeout
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    if kubectl get dynamographdeployment "${EXAMPLE}" -n "${NAMESPACE}" -o jsonpath='{.status.state}' 2>/dev/null | grep -q "successful"; then
+    if kubectl get dynamographdeployment "${DEPLOYMENT_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.state}' 2>/dev/null | grep -q "successful"; then
         success "DynamoGraphDeployment is ready"
         break
     fi
 
     if [ $((ELAPSED % 30)) -eq 0 ]; then
         info "Still waiting for DynamoGraphDeployment to be ready... (${ELAPSED}s elapsed)"
-        kubectl get dynamographdeployment "${EXAMPLE}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[*].message}' 2>/dev/null || echo "Status not available yet"
+        kubectl get dynamographdeployment "${DEPLOYMENT_NAME}" -n "${NAMESPACE}" -o jsonpath='{.status.conditions[*].message}' 2>/dev/null || echo "Status not available yet"
     fi
 
     sleep 5
@@ -507,10 +505,10 @@ section "Deployment Status"
 
 # Show DynamoGraphDeployment status
 info "DynamoGraphDeployment status:"
-kubectl get dynamographdeployment "${EXAMPLE}" -n "${NAMESPACE}" 2>/dev/null || {
+kubectl get dynamographdeployment "${DEPLOYMENT_NAME}" -n "${NAMESPACE}" 2>/dev/null || {
     warn "DynamoGraphDeployment not found yet, checking again..."
     sleep 2
-    kubectl get dynamographdeployment "${EXAMPLE}" -n "${NAMESPACE}" 2>/dev/null || {
+    kubectl get dynamographdeployment "${DEPLOYMENT_NAME}" -n "${NAMESPACE}" 2>/dev/null || {
         warn "DynamoGraphDeployment still not found"
     }
 }
@@ -548,7 +546,7 @@ case "$EXAMPLE" in
         echo "  kubectl port-forward deployment/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
         echo "  curl http://localhost:8000/health"
         ;;
-    "vllm"|"sglang"|"trtllm")
+    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance")
         echo "Test the ${EXAMPLE} service:"
         echo "  # Use Service (recommended) - enables both API access and metrics collection"
         echo "  kubectl port-forward service/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
@@ -562,6 +560,40 @@ case "$EXAMPLE" in
         echo "  curl -X POST http://localhost:8000/v1/chat/completions \\"
         echo "    -H 'Content-Type: application/json' \\"
         echo "    -d '{\"model\": \"model-name\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'"
+        echo ""
+        echo "Test metrics (via Service):"
+        echo "  curl http://localhost:8000/metrics"
+        ;;
+    "vllm-aggregated-70b"|"trtllm-aggregated-70b"|"vllm-disaggregated-70b"|"sglang-disaggregated-70b"|"trtllm-disaggregated-70b")
+        echo "Test the Llama 3.3 70B FP8 service:"
+        echo "  # Use Service (recommended) - enables both API access and metrics collection"
+        echo "  kubectl port-forward service/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
+        echo "  # Alternative: Direct deployment port-forward"
+        echo "  # kubectl port-forward deployment/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
+        echo ""
+        echo "  curl http://localhost:8000/health"
+        echo "  curl http://localhost:8000/v1/models"
+        echo ""
+        echo "Test chat completions with 70B model:"
+        echo "  curl -X POST http://localhost:8000/v1/chat/completions \\"
+        echo "    -H 'Content-Type: application/json' \\"
+        echo "    -d '{\"model\": \"nvidia/Llama-3.3-70B-Instruct-FP8\", \"messages\": [{\"role\": \"user\", \"content\": \"Explain quantum computing in simple terms\"}], \"max_tokens\": 500}'"
+        echo ""
+        echo "Monitor GPU usage:"
+        if [[ "$EXAMPLE" =~ ^(vllm-aggregated-70b|vllm-disaggregated-70b)$ ]]; then
+            echo "  kubectl exec -it deployment/${EXAMPLE}-vllmworker -n ${NAMESPACE} -- nvidia-smi"
+            if [[ "$EXAMPLE" == "vllm-disaggregated-70b" ]]; then
+                echo "  kubectl exec -it deployment/${EXAMPLE}-vllmprefillworker -n ${NAMESPACE} -- nvidia-smi"
+            fi
+        elif [[ "$EXAMPLE" =~ ^(trtllm-aggregated-70b|trtllm-disaggregated-70b)$ ]]; then
+            echo "  kubectl exec -it deployment/${EXAMPLE}-trtllmworker -n ${NAMESPACE} -- nvidia-smi"
+            if [[ "$EXAMPLE" == "trtllm-disaggregated-70b" ]]; then
+                echo "  kubectl exec -it deployment/${EXAMPLE}-trtllmprefillworker -n ${NAMESPACE} -- nvidia-smi"
+            fi
+        elif [[ "$EXAMPLE" == "sglang-disaggregated-70b" ]]; then
+            echo "  kubectl exec -it deployment/${EXAMPLE}-sglangdecodeworker -n ${NAMESPACE} -- nvidia-smi"
+            echo "  kubectl exec -it deployment/${EXAMPLE}-sglangprefillworker -n ${NAMESPACE} -- nvidia-smi"
+        fi
         echo ""
         echo "Test metrics (via Service):"
         echo "  curl http://localhost:8000/metrics"

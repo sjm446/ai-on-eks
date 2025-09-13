@@ -1,5 +1,25 @@
 # TensorRT-LLM Example
 
+⚠️ **DEPRECATED**: This directory has been replaced by multiple TensorRT-LLM variants:
+
+- **`trtllm-default/`** - Default TensorRT-LLM configuration for small models
+- **`trtllm-high-performance/`** - High-performance configuration optimized for throughput
+- **`trtllm-70b/`** - Configuration for 70B models with 8x GPU tensor parallelism
+
+## Migration Guide
+
+Instead of using ConfigMaps, each variant now has embedded engine configurations:
+
+```bash
+# Old approach (deprecated)
+./deploy.sh trtllm
+
+# New approach - choose specific variant
+./deploy.sh trtllm-default           # For small models
+./deploy.sh trtllm-high-performance  # For maximum throughput
+./deploy.sh trtllm-70b              # For 70B models
+```
+
 Deploy TensorRT-LLM-based LLM serving with maximum performance optimization using NVIDIA Dynamo v0.4.1.
 
 ## Architecture

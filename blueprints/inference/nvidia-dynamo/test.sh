@@ -72,31 +72,49 @@ print_banner "DYNAMO EXAMPLE TESTING"
 
 section "Example Selection"
 
-# Available examples
-VALID_EXAMPLES=("hello-world" "vllm" "sglang" "trtllm" "multinode-vllm" "vllm-disagg" "sglang-disagg" "trtllm-disagg" "kv-routing" "sla-planner")
+# Get available examples dynamically from deploy.sh
+get_available_examples() {
+    local deploy_script="${SCRIPT_DIR}/deploy.sh"
+    if [ -f "$deploy_script" ]; then
+        # Extract examples from deploy.sh AVAILABLE_EXAMPLES array
+        grep -A 20 "AVAILABLE_EXAMPLES=(" "$deploy_script" | \
+        grep -E '^\s*"[^"]+:[^"]*"' | \
+        sed 's/.*"\([^:]*\):.*/\1/' | \
+        sort
+    else
+        # Fallback to common examples if deploy.sh not found
+        echo "hello-world vllm vllm-70b sglang trtllm-default trtllm-high-performance trtllm-70b multi-replica-vllm vllm-disagg vllm-disagg-70b sglang-disagg sglang-disagg-70b trtllm-disagg-default trtllm-disagg-high-performance trtllm-disagg-70b kv-routing"
+    fi
+}
+
+AVAILABLE_EXAMPLES=($(get_available_examples))
 
 EXAMPLE=""
 if [ $# -gt 0 ]; then
     EXAMPLE="$1"
-    # Validate provided example
-    if [[ ! " ${VALID_EXAMPLES[@]} " =~ " ${EXAMPLE} " ]]; then
+    # Validate provided example against available examples
+    if [[ ! " ${AVAILABLE_EXAMPLES[@]} " =~ " ${EXAMPLE} " ]]; then
         error "Invalid example: ${EXAMPLE}"
-        info "Available examples: ${VALID_EXAMPLES[*]}"
+        info "Available examples: ${AVAILABLE_EXAMPLES[*]}"
         exit 1
     fi
 else
-    # Check for deployed examples
+    # Check for deployed examples dynamically
     info "Checking for deployed examples..."
     DEPLOYED_EXAMPLES=()
-    for example in "${VALID_EXAMPLES[@]}"; do
-        if kubectl get dynamographdeployment "$example" -n "${NAMESPACE}" >/dev/null 2>&1; then
-            DEPLOYED_EXAMPLES+=("$example")
-        fi
-    done
+
+    # Get all deployed DynamoGraphDeployments
+    if kubectl get dynamographdeployments -n "${NAMESPACE}" >/dev/null 2>&1; then
+        while IFS= read -r deployment_name; do
+            if [ -n "$deployment_name" ] && [ "$deployment_name" != "NAME" ]; then
+                DEPLOYED_EXAMPLES+=("$deployment_name")
+            fi
+        done < <(kubectl get dynamographdeployments -n "${NAMESPACE}" --no-headers -o custom-columns=":metadata.name" 2>/dev/null)
+    fi
 
     if [ ${#DEPLOYED_EXAMPLES[@]} -eq 0 ]; then
         error "No deployed examples found in namespace ${NAMESPACE}"
-        info "Available examples to deploy: ${VALID_EXAMPLES[*]}"
+        info "Available examples to deploy: ${AVAILABLE_EXAMPLES[*]}"
         info "Deploy an example first: ./deploy.sh <example-name>"
         exit 1
     fi
@@ -291,7 +309,7 @@ case "$EXAMPLE" in
         # Test any hello-world specific endpoints
         ;;
 
-    "vllm"|"sglang"|"trtllm"|"multinode-vllm"|"vllm-disagg"|"sglang-disagg"|"trtllm-disagg"|"kv-routing")
+    "vllm-aggregated-default"|"vllm-aggregated-70b"|"vllm-disaggregated-default"|"vllm-disaggregated-70b"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"sglang-disaggregated-70b"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-aggregated-70b"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"trtllm-disaggregated-70b"|"multi-replica-vllm"|"kv-routing")
         info "Testing LLM service endpoints..."
 
         # Test models endpoint
@@ -312,9 +330,14 @@ case "$EXAMPLE" in
 
         # Set model name based on the example
         case "$EXAMPLE" in
-            "vllm"|"multinode-vllm"|"vllm-disagg"|"kv-routing") MODEL_NAME="Qwen/Qwen3-8B" ;;
-            "sglang"|"trtllm"|"sglang-disagg"|"trtllm-disagg") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
-            *) 
+            "vllm-aggregated-default"|"vllm-disaggregated-default") MODEL_NAME="Qwen/Qwen3-8B" ;;
+            "vllm-aggregated-70b"|"vllm-disaggregated-70b") MODEL_NAME="nvidia/Llama-3.3-70B-Instruct-FP8" ;;
+            "multi-replica-vllm"|"kv-routing") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
+            "sglang-aggregated-default"|"sglang-disaggregated-default") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
+            "sglang-disaggregated-70b") MODEL_NAME="nvidia/Llama-3.3-70B-Instruct-FP8" ;;
+            "trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
+            "trtllm-aggregated-70b"|"trtllm-disaggregated-70b") MODEL_NAME="nvidia/Llama-3.3-70B-Instruct-FP8" ;;
+            *)
                 # Fallback to dynamic detection for other cases
                 MODEL_NAME=$(curl -s "$MODELS_URL" 2>/dev/null | jq -r '.data[0].id' 2>/dev/null || echo "default")
                 ;;
@@ -352,7 +375,7 @@ EOF
 
         # Advanced testing for specific examples
         case "$EXAMPLE" in
-            "vllm-disagg"|"sglang-disagg"|"trtllm-disagg")
+            "vllm-disaggregated-default"|"vllm-disaggregated-70b"|"sglang-disaggregated-default"|"sglang-disaggregated-70b"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"trtllm-disaggregated-70b")
                 echo ""
                 info "Testing disaggregation with long context..."
                 LONG_CONTEXT=$(python3 -c "print('Long context test: ' + 'word ' * 100)")
@@ -471,7 +494,7 @@ echo "  1. Port forwarding: kubectl port-forward service/${SERVICE_NAME} ${LOCAL
 echo "  2. Health check: curl http://localhost:${LOCAL_PORT}/health"
 
 case "$EXAMPLE" in
-    "vllm"|"sglang"|"trtllm"|"multinode-vllm"|"vllm-disagg"|"sglang-disagg"|"trtllm-disagg"|"kv-routing")
+    "vllm-aggregated-default"|"vllm-aggregated-70b"|"vllm-disaggregated-default"|"vllm-disaggregated-70b"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"sglang-disaggregated-70b"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-aggregated-70b"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"trtllm-disaggregated-70b"|"multi-replica-vllm"|"kv-routing")
         echo "  3. List models: curl http://localhost:${LOCAL_PORT}/v1/models"
         echo "  4. Chat completion: curl -X POST http://localhost:${LOCAL_PORT}/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\": \"${MODEL_NAME}\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}], \"max_tokens\": 50}'"
         ;;

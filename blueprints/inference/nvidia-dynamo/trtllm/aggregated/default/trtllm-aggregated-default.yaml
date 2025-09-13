@@ -4,22 +4,19 @@
 apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
-  name: trtllm
+  name: trtllm-aggregated-default
   namespace: dynamo-cloud
 spec:
   services:
     Frontend:
-      dynamoNamespace: trtllm
-      componentType: main
       livenessProbe:
-        exec:
-          command:
-            - /bin/sh
-            - -c
-            - 'curl -s http://localhost:8000/health | jq -e ".status == \"healthy\""'
-        periodSeconds: 5
-        timeoutSeconds: 3
-        failureThreshold: 3
+        httpGet:
+          path: /health
+          port: 8000
+        initialDelaySeconds: 60
+        periodSeconds: 60
+        timeoutSeconds: 30
+        failureThreshold: 10
       readinessProbe:
         exec:
           command:
@@ -28,19 +25,19 @@ spec:
             - 'curl -s http://localhost:8000/health | jq -e ".status == \"healthy\""'
         initialDelaySeconds: 60
         periodSeconds: 60
-        timeoutSeconds: 3
+        timeoutSeconds: 30
         failureThreshold: 10
+      dynamoNamespace: trtllm-aggregated-default
+      componentType: main
       replicas: 1
       resources:
         requests:
-          cpu: "5"
-          memory: "10Gi"
+          cpu: "1"
+          memory: "2Gi"
         limits:
-          cpu: "5"
-          memory: "10Gi"
+          cpu: "1"
+          memory: "2Gi"
       extraPodSpec:
-        imagePullSecrets:
-          - name: ngc-secret
         mainContainer:
           image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
           workingDir: /workspace/components/backends/trtllm
@@ -65,7 +62,7 @@ spec:
         periodSeconds: 10
         timeoutSeconds: 3
         failureThreshold: 60
-      dynamoNamespace: trtllm
+      dynamoNamespace: trtllm-aggregated-default
       componentType: worker
       replicas: 1
       resources:
@@ -93,14 +90,6 @@ spec:
           - key: nvidia.com/gpu
             operator: Exists
             effect: NoSchedule
-        # Volume definition for engine configuration from ConfigMap
-        volumes:
-          - name: engine-config-volume
-            configMap:
-              name: trtllm-engine-config-default  # Use trtllm-engine-config-high-performance for high-perf
-              items:
-                - key: agg.yaml
-                  path: agg.yaml
         mainContainer:
           image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
           workingDir: /workspace/components/backends/trtllm
@@ -111,10 +100,30 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 60
-          # Volume mount for external configurations
-          volumeMounts:
-            - name: engine-config-volume
-              mountPath: /workspace/components/backends/trtllm/external_configs
-              readOnly: true
+          command:
+            - /bin/sh
+            - -c
           args:
-            - "python3 -m dynamo.trtllm --model-path Qwen/Qwen3-0.6B --served-model-name Qwen/Qwen3-0.6B --extra-engine-args external_configs/agg.yaml"
+            - |
+              # Create inline engine configuration
+              mkdir -p /tmp/engine_configs
+              cat > /tmp/engine_configs/agg.yaml << 'EOF'
+              # Default TensorRT-LLM Engine Configuration
+              tensor_parallel_size: 1
+              moe_expert_parallel_size: 1
+              enable_attention_dp: false
+              max_num_tokens: 8192
+              max_batch_size: 16
+              trust_remote_code: true
+              backend: pytorch
+              enable_chunked_prefill: true
+              
+              kv_cache_config:
+                free_gpu_memory_fraction: 0.85
+              
+              cuda_graph_config:
+                max_batch_size: 16
+              EOF
+              
+              # Start TensorRT-LLM worker
+              python3 -m dynamo.trtllm --model-path Qwen/Qwen3-0.6B --served-model-name Qwen/Qwen3-0.6B --extra-engine-args /tmp/engine_configs/agg.yaml

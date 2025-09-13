@@ -4,7 +4,7 @@
 apiVersion: nvidia.com/v1alpha1
 kind: DynamoGraphDeployment
 metadata:
-  name: sglang
+  name: sglang-aggregated-default
   namespace: dynamo-cloud
 spec:
   services:
@@ -27,7 +27,7 @@ spec:
         periodSeconds: 60
         timeoutSeconds: 30
         failureThreshold: 10
-      dynamoNamespace: sglang
+      dynamoNamespace: sglang-aggregated-default
       componentType: main
       replicas: 1
       resources:
@@ -65,7 +65,7 @@ spec:
         periodSeconds: 60
         timeoutSeconds: 30
         failureThreshold: 10
-      dynamoNamespace: sglang
+      dynamoNamespace: sglang-aggregated-default
       componentType: worker
       replicas: 1
       resources:
