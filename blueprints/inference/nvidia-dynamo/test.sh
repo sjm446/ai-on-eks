@@ -310,20 +310,16 @@ case "$EXAMPLE" in
         info "Testing chat completions endpoint..."
         COMPLETIONS_URL="${BASE_URL}/v1/chat/completions"
 
-        # Dynamically get the first available model from /v1/models
-        MODEL_NAME=$(curl -s "$MODELS_URL" 2>/dev/null | jq -r '.data[0].id' 2>/dev/null || echo "")
-        
-        if [ -z "$MODEL_NAME" ] || [ "$MODEL_NAME" = "null" ]; then
-            # Fallback to example-based model names if dynamic detection fails
-            case "$EXAMPLE" in
-                "vllm"|"multinode-vllm"|"vllm-disagg"|"kv-routing") MODEL_NAME="Qwen/Qwen3-8B" ;;
-                "sglang"|"trtllm"|"sglang-disagg"|"trtllm-disagg") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
-                *) MODEL_NAME="default" ;;
-            esac
-            warn "Could not detect model dynamically, using fallback: ${MODEL_NAME}"
-        else
-            success "Detected model from /v1/models endpoint: ${MODEL_NAME}"
-        fi
+        # Set model name based on the example
+        case "$EXAMPLE" in
+            "vllm"|"multinode-vllm"|"vllm-disagg"|"kv-routing") MODEL_NAME="Qwen/Qwen3-8B" ;;
+            "sglang"|"trtllm"|"sglang-disagg"|"trtllm-disagg") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
+            *) 
+                # Fallback to dynamic detection for other cases
+                MODEL_NAME=$(curl -s "$MODELS_URL" 2>/dev/null | jq -r '.data[0].id' 2>/dev/null || echo "default")
+                ;;
+        esac
+        info "Using model: ${MODEL_NAME} for testing ${EXAMPLE}"
 
         CHAT_PAYLOAD=$(cat <<EOF
 {
