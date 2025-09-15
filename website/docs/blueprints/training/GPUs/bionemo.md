@@ -280,8 +280,7 @@ BioNeMo stands as a formidable generative AI tool tailored for the realm of drug
 Use the provided helper script `cleanup.sh` to tear down EKS cluster and other AWS resources.
 
 ```bash
-cd ../../
-./cleanup.sh
+../../terraform/_LOCAL/cleanup.sh
 ```
 
 </CollapsibleContent>
