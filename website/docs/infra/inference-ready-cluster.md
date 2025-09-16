@@ -182,7 +182,7 @@ dashboards are configured to automatically visualize the metrics and logs side b
 ### Step 7: Cluster Ready
 
 Users can access EKS API and can deploy containerized AI/ML inference workloads via Kubernetes CLI using the AI on EKS
-[inference charts](../../blueprints/inference/inference-charts.md) or other repositories by interacting with AWS Network
+[inference charts](../blueprints/inference/inference-charts.md) or other repositories by interacting with AWS Network
 Load Balancer (NLB) endpoint.
 
 ### Step 8: Verify Deployment
@@ -363,7 +363,7 @@ You should see the following output (expand the section to see the output)
 ## Inference on EKS
 
 EKS is a powerful platform for running AI/ML inference. For a deep dive on many of the inference possibilities on EKS,
-please check the [inference](../../blueprints/inference/index.md) section.
+please check the [inference](../blueprints/inference/index.md) section.
 
 ### Inference Charts Integration
 
@@ -422,7 +422,7 @@ helm install neuron-inference . \
   --values values-llama-31-8b-vllm-neuron.yaml
 ```
 
-Please check the [inference charts](../../blueprints/inference/inference-charts.md) section for a deeper look at what is
+Please check the [inference charts](../blueprints/inference/inference-charts.md) section for a deeper look at what is
 available.
 
 ### Observability Integration
@@ -440,7 +440,7 @@ Access Grafana dashboard:
 kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
 ```
 
-Please see the [observability](../../resources/observability.md) for an in-depth look at using the observability
+Please see the [observability](../guidance/observability.md) for an in-depth look at using the observability
 features.
 
 ### Cost Optimization
