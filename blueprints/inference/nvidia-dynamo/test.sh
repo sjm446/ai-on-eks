@@ -83,7 +83,7 @@ get_available_examples() {
         sort
     else
         # Fallback to common examples if deploy.sh not found
-        echo "hello-world vllm vllm-70b sglang trtllm-default trtllm-high-performance trtllm-70b multi-replica-vllm vllm-disagg vllm-disagg-70b sglang-disagg sglang-disagg-70b trtllm-disagg-default trtllm-disagg-high-performance trtllm-disagg-70b kv-routing"
+        echo "hello-world vllm sglang trtllm-default trtllm-high-performance multi-replica-vllm vllm-disagg sglang-disagg trtllm-disagg-default trtllm-disagg-high-performance kv-routing"
     fi
 }
 
@@ -309,7 +309,7 @@ case "$EXAMPLE" in
         # Test any hello-world specific endpoints
         ;;
 
-    "vllm-aggregated-default"|"vllm-aggregated-70b"|"vllm-disaggregated-default"|"vllm-disaggregated-70b"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"sglang-disaggregated-70b"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-aggregated-70b"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"trtllm-disaggregated-70b"|"multi-replica-vllm"|"kv-routing")
+    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"multi-replica-vllm"|"kv-routing")
         info "Testing LLM service endpoints..."
 
         # Test models endpoint
@@ -331,12 +331,9 @@ case "$EXAMPLE" in
         # Set model name based on the example
         case "$EXAMPLE" in
             "vllm-aggregated-default"|"vllm-disaggregated-default") MODEL_NAME="Qwen/Qwen3-8B" ;;
-            "vllm-aggregated-70b"|"vllm-disaggregated-70b") MODEL_NAME="nvidia/Llama-3.3-70B-Instruct-FP8" ;;
             "multi-replica-vllm"|"kv-routing") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
             "sglang-aggregated-default"|"sglang-disaggregated-default") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
-            "sglang-disaggregated-70b") MODEL_NAME="nvidia/Llama-3.3-70B-Instruct-FP8" ;;
             "trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
-            "trtllm-aggregated-70b"|"trtllm-disaggregated-70b") MODEL_NAME="nvidia/Llama-3.3-70B-Instruct-FP8" ;;
             *)
                 # Fallback to dynamic detection for other cases
                 MODEL_NAME=$(curl -s "$MODELS_URL" 2>/dev/null | jq -r '.data[0].id' 2>/dev/null || echo "default")
@@ -375,7 +372,7 @@ EOF
 
         # Advanced testing for specific examples
         case "$EXAMPLE" in
-            "vllm-disaggregated-default"|"vllm-disaggregated-70b"|"sglang-disaggregated-default"|"sglang-disaggregated-70b"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"trtllm-disaggregated-70b")
+            "vllm-disaggregated-default"|"sglang-disaggregated-default"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance")
                 echo ""
                 info "Testing disaggregation with long context..."
                 LONG_CONTEXT=$(python3 -c "print('Long context test: ' + 'word ' * 100)")
@@ -494,7 +491,7 @@ echo "  1. Port forwarding: kubectl port-forward service/${SERVICE_NAME} ${LOCAL
 echo "  2. Health check: curl http://localhost:${LOCAL_PORT}/health"
 
 case "$EXAMPLE" in
-    "vllm-aggregated-default"|"vllm-aggregated-70b"|"vllm-disaggregated-default"|"vllm-disaggregated-70b"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"sglang-disaggregated-70b"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-aggregated-70b"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"trtllm-disaggregated-70b"|"multi-replica-vllm"|"kv-routing")
+    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"multi-replica-vllm"|"kv-routing")
         echo "  3. List models: curl http://localhost:${LOCAL_PORT}/v1/models"
         echo "  4. Chat completion: curl -X POST http://localhost:${LOCAL_PORT}/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\": \"${MODEL_NAME}\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}], \"max_tokens\": 50}'"
         ;;

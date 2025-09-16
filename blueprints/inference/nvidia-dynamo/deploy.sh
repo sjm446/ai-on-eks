@@ -103,18 +103,14 @@ print_banner "DYNAMO ${DYNAMO_VERSION} EXAMPLE DEPLOYMENT"
 AVAILABLE_EXAMPLES=(
     "hello-world:Simple CPU-only example for testing Dynamo functionality"
     "vllm-aggregated-default:vLLM aggregated serving with default settings (small models)"
-    "vllm-aggregated-70b:vLLM aggregated serving Llama 3.3 70B FP8 model with 8x L4 GPUs"
     "vllm-disaggregated-default:vLLM disaggregated serving with default settings (separate prefill/decode workers)"
-    "vllm-disaggregated-70b:vLLM disaggregated serving Llama 3.3 70B FP8 model with 4+4 L4 GPUs"
     "sglang-aggregated-default:SGLang aggregated serving with advanced caching (small models)"
     "sglang-disaggregated-default:SGLang disaggregated serving with RadixAttention (small models)"
-    "sglang-disaggregated-70b:SGLang disaggregated serving Llama 3.3 70B FP8 model with 4+4 L4 GPUs"
+    ""
     "trtllm-aggregated-default:TensorRT-LLM aggregated inference with default settings (requires NGC authentication)"
     "trtllm-aggregated-high-performance:TensorRT-LLM aggregated optimized for maximum throughput (requires NGC authentication)"
-    "trtllm-aggregated-70b:TensorRT-LLM aggregated serving Llama 3.3 70B FP8 model with 8x L4 GPUs (requires NGC authentication)"
     "trtllm-disaggregated-default:TensorRT-LLM disaggregated serving with default settings (requires NGC authentication)"
     "trtllm-disaggregated-high-performance:TensorRT-LLM disaggregated serving optimized for throughput (requires NGC authentication)"
-    "trtllm-disaggregated-70b:TensorRT-LLM disaggregated serving Llama 3.3 70B FP8 model with 4+4 L4 GPUs (requires NGC authentication)"
     "multi-replica-vllm:Multi-replica vLLM deployment with KV routing and high availability"
     "kv-routing:KV-aware routing demo with multiple workers (improved configuration)"
 )
@@ -148,7 +144,7 @@ EXAMPLE=""
 if [ $# -gt 0 ]; then
     EXAMPLE="$1"
     # Validate provided example
-    VALID_EXAMPLES=("hello-world" "vllm-aggregated-default" "vllm-aggregated-70b" "vllm-disaggregated-default" "vllm-disaggregated-70b" "sglang-aggregated-default" "sglang-disaggregated-default" "sglang-disaggregated-70b" "trtllm-aggregated-default" "trtllm-aggregated-high-performance" "trtllm-aggregated-70b" "trtllm-disaggregated-default" "trtllm-disaggregated-high-performance" "trtllm-disaggregated-70b" "multi-replica-vllm" "kv-routing")
+    VALID_EXAMPLES=("hello-world" "vllm-aggregated-default" "vllm-disaggregated-default" "sglang-aggregated-default" "sglang-disaggregated-default" "trtllm-aggregated-default" "trtllm-aggregated-high-performance" "trtllm-disaggregated-default" "trtllm-disaggregated-high-performance" "multi-replica-vllm" "kv-routing")
     if [[ ! " ${VALID_EXAMPLES[@]} " =~ " ${EXAMPLE} " ]]; then
         error "Invalid example: ${EXAMPLE}"
         info "Available examples: ${VALID_EXAMPLES[*]}"
@@ -184,14 +180,8 @@ get_example_path() {
         "vllm-aggregated-default")
             echo "vllm/aggregated/default"
             ;;
-        "vllm-aggregated-70b")
-            echo "vllm/aggregated/70b"
-            ;;
         "vllm-disaggregated-default")
             echo "vllm/disaggregated/default"
-            ;;
-        "vllm-disaggregated-70b")
-            echo "vllm/disaggregated/70b"
             ;;
         "sglang-aggregated-default")
             echo "sglang/aggregated/default"
@@ -199,26 +189,17 @@ get_example_path() {
         "sglang-disaggregated-default")
             echo "sglang/disaggregated/default"
             ;;
-        "sglang-disaggregated-70b")
-            echo "sglang/disaggregated/70b"
-            ;;
         "trtllm-aggregated-default")
             echo "trtllm/aggregated/default"
             ;;
         "trtllm-aggregated-high-performance")
             echo "trtllm/aggregated/high-performance"
             ;;
-        "trtllm-aggregated-70b")
-            echo "trtllm/aggregated/70b"
-            ;;
         "trtllm-disaggregated-default")
             echo "trtllm/disaggregated/default"
             ;;
         "trtllm-disaggregated-high-performance")
             echo "trtllm/disaggregated/high-performance"
-            ;;
-        "trtllm-disaggregated-70b")
-            echo "trtllm/disaggregated/70b"
             ;;
         *)
             # For other examples (hello-world, multi-replica-vllm, kv-routing)
@@ -344,7 +325,7 @@ if [[ "$EXAMPLE" =~ ^(vllm|sglang|trtllm|multi-replica-vllm|vllm-disagg|sglang-d
 fi
 
 # Check for NGC token secret (for TensorRT-LLM examples)
-if [[ "$EXAMPLE" =~ ^(trtllm-aggregated-default|trtllm-aggregated-high-performance|trtllm-aggregated-70b|trtllm-disaggregated-default|trtllm-disaggregated-high-performance|trtllm-disaggregated-70b)$ ]]; then
+if [[ "$EXAMPLE" =~ ^(trtllm-aggregated-default|trtllm-aggregated-high-performance|trtllm-disaggregated-default|trtllm-disaggregated-high-performance)$ ]]; then
     if ! kubectl get secret ngc-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
         warn "NGC (NVIDIA GPU Cloud) token secret not found"
         warn "TensorRT-LLM examples require NGC authentication to pull container images"
@@ -560,40 +541,6 @@ case "$EXAMPLE" in
         echo "  curl -X POST http://localhost:8000/v1/chat/completions \\"
         echo "    -H 'Content-Type: application/json' \\"
         echo "    -d '{\"model\": \"model-name\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}'"
-        echo ""
-        echo "Test metrics (via Service):"
-        echo "  curl http://localhost:8000/metrics"
-        ;;
-    "vllm-aggregated-70b"|"trtllm-aggregated-70b"|"vllm-disaggregated-70b"|"sglang-disaggregated-70b"|"trtllm-disaggregated-70b")
-        echo "Test the Llama 3.3 70B FP8 service:"
-        echo "  # Use Service (recommended) - enables both API access and metrics collection"
-        echo "  kubectl port-forward service/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
-        echo "  # Alternative: Direct deployment port-forward"
-        echo "  # kubectl port-forward deployment/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
-        echo ""
-        echo "  curl http://localhost:8000/health"
-        echo "  curl http://localhost:8000/v1/models"
-        echo ""
-        echo "Test chat completions with 70B model:"
-        echo "  curl -X POST http://localhost:8000/v1/chat/completions \\"
-        echo "    -H 'Content-Type: application/json' \\"
-        echo "    -d '{\"model\": \"nvidia/Llama-3.3-70B-Instruct-FP8\", \"messages\": [{\"role\": \"user\", \"content\": \"Explain quantum computing in simple terms\"}], \"max_tokens\": 500}'"
-        echo ""
-        echo "Monitor GPU usage:"
-        if [[ "$EXAMPLE" =~ ^(vllm-aggregated-70b|vllm-disaggregated-70b)$ ]]; then
-            echo "  kubectl exec -it deployment/${EXAMPLE}-vllmworker -n ${NAMESPACE} -- nvidia-smi"
-            if [[ "$EXAMPLE" == "vllm-disaggregated-70b" ]]; then
-                echo "  kubectl exec -it deployment/${EXAMPLE}-vllmprefillworker -n ${NAMESPACE} -- nvidia-smi"
-            fi
-        elif [[ "$EXAMPLE" =~ ^(trtllm-aggregated-70b|trtllm-disaggregated-70b)$ ]]; then
-            echo "  kubectl exec -it deployment/${EXAMPLE}-trtllmworker -n ${NAMESPACE} -- nvidia-smi"
-            if [[ "$EXAMPLE" == "trtllm-disaggregated-70b" ]]; then
-                echo "  kubectl exec -it deployment/${EXAMPLE}-trtllmprefillworker -n ${NAMESPACE} -- nvidia-smi"
-            fi
-        elif [[ "$EXAMPLE" == "sglang-disaggregated-70b" ]]; then
-            echo "  kubectl exec -it deployment/${EXAMPLE}-sglangdecodeworker -n ${NAMESPACE} -- nvidia-smi"
-            echo "  kubectl exec -it deployment/${EXAMPLE}-sglangprefillworker -n ${NAMESPACE} -- nvidia-smi"
-        fi
         echo ""
         echo "Test metrics (via Service):"
         echo "  curl http://localhost:8000/metrics"
