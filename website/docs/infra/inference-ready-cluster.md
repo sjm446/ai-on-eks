@@ -21,7 +21,7 @@ requirements, different tools are needed to properly deploy, run, and scale the 
 models that aren't just LLMs, such as text -> image diffusion models or more traditional Machine Learning models.
 
 This infrastructure is meant to be the first layer of support. Alongside
-the [Inference Charts](../../blueprints/inference/inference-charts.md) and the Guidance you'll also find in this
+the [Inference Charts](../blueprints/inference/inference-charts.md) and the Guidance you'll also find in this
 repository, AI on EKS aims to equip you with all the tools and knowledge you need to be able to run the inference you
 want.
 
