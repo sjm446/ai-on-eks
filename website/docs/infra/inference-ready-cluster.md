@@ -6,7 +6,7 @@ sidebar_label: Inference-Ready Cluster
 
 The Inference-Ready EKS Cluster is a pre-configured infrastructure solution designed specifically for AI/ML inference
 workloads. This solution provides a Kubernetes cluster with all the necessary components to deploy and run inference
-services using the AI on EKS [inference charts](../../blueprints/inference/inference-charts.md) or your own deployments
+services using the AI on EKS [inference charts](../blueprints/inference/inference-charts.md) or your own deployments
 and models.
 
 An expanded [Readme](https://github.com/awslabs/ai-on-eks/tree/main/infra/solutions/inference-ready-cluster/README.md)
@@ -49,7 +49,7 @@ features:
 - **Autoscaling**: Karpenter-based node autoscaling for cost optimization
 
 The cluster is specifically designed to work seamlessly with the AI on
-EKS [Inference Charts](../../blueprints/inference/inference-charts.md), providing a complete end-to-end solution for
+EKS [Inference Charts](../blueprints/inference/inference-charts.md), providing a complete end-to-end solution for
 deploying inference workloads.
 
 ## Resources
