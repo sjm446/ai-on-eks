@@ -20,6 +20,7 @@
         - [Create a Cluster Secret](#create-the-cluster-secret)
         - [Deploy the Model](#deploy-a-model)
 - [Monitoring and Observability](#-monitoring-and-observability)
+- [Troubleshooting](#troubleshooting)
 - [Cleanup](#cleanup-the-environment)
 - [License](#license)
 
@@ -103,7 +104,7 @@ Kubernetes and Karpenter.
 
 You are responsible for the cost of the AWS services used while running this guidance.
 As of August 2025, the cost for running this guidance with the default settings in the US West (Oregon) Region is
-approximately **$96.21/month**.
+approximately **$296.21/month**.
 
 We recommend creating a [budget](https://alpha-docs-aws.amazon.com/awsaccountbilling/latest/aboutv2/budgets-create.html)
 through [AWS Cost Explorer](http://aws.amazon.com/aws-cost-management/aws-cost-explorer/) to help manage costs. Prices

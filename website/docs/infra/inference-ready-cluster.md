@@ -49,7 +49,7 @@ features:
 - **Autoscaling**: Karpenter-based node autoscaling for cost optimization
 
 The cluster is specifically designed to work seamlessly with the AI on
-EKS [Inferece Charts](../../blueprints/inference/inference-charts.md), providing a complete end-to-end solution for
+EKS [Inference Charts](../../blueprints/inference/inference-charts.md), providing a complete end-to-end solution for
 deploying inference workloads.
 
 ## Resources
