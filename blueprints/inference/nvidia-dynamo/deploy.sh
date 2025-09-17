@@ -106,13 +106,13 @@ AVAILABLE_EXAMPLES=(
     "vllm-disaggregated-default:vLLM disaggregated serving with default settings (separate prefill/decode workers)"
     "sglang-aggregated-default:SGLang aggregated serving with advanced caching (small models)"
     "sglang-disaggregated-default:SGLang disaggregated serving with RadixAttention (small models)"
-    ""
     "trtllm-aggregated-default:TensorRT-LLM aggregated inference with default settings (requires NGC authentication)"
     "trtllm-aggregated-high-performance:TensorRT-LLM aggregated optimized for maximum throughput (requires NGC authentication)"
     "trtllm-disaggregated-default:TensorRT-LLM disaggregated serving with default settings (requires NGC authentication)"
-    "trtllm-disaggregated-high-performance:TensorRT-LLM disaggregated serving optimized for throughput (requires NGC authentication)"
     "multi-replica-vllm:Multi-replica vLLM deployment with KV routing and high availability"
-    "kv-routing:KV-aware routing demo with multiple workers (improved configuration)"
+    "vllm-router:vLLM with KV-aware routing for cache optimization"
+    "sglang-router:SGLang with KV-aware routing for cache optimization" 
+    "trtllm-router:TensorRT-LLM with KV-aware routing for cache optimization (requires NGC authentication)"
 )
 
 #---------------------------------------------------------------
@@ -144,7 +144,7 @@ EXAMPLE=""
 if [ $# -gt 0 ]; then
     EXAMPLE="$1"
     # Validate provided example
-    VALID_EXAMPLES=("hello-world" "vllm-aggregated-default" "vllm-disaggregated-default" "sglang-aggregated-default" "sglang-disaggregated-default" "trtllm-aggregated-default" "trtllm-aggregated-high-performance" "trtllm-disaggregated-default" "trtllm-disaggregated-high-performance" "multi-replica-vllm" "kv-routing")
+    VALID_EXAMPLES=("hello-world" "vllm-aggregated-default" "vllm-disaggregated-default" "sglang-aggregated-default" "sglang-disaggregated-default" "trtllm-aggregated-default" "trtllm-aggregated-high-performance" "trtllm-disaggregated-default" "multi-replica-vllm" "vllm-router" "sglang-router" "trtllm-router")
     if [[ ! " ${VALID_EXAMPLES[@]} " =~ " ${EXAMPLE} " ]]; then
         error "Invalid example: ${EXAMPLE}"
         info "Available examples: ${VALID_EXAMPLES[*]}"
@@ -198,11 +198,17 @@ get_example_path() {
         "trtllm-disaggregated-default")
             echo "trtllm/disaggregated/default"
             ;;
-        "trtllm-disaggregated-high-performance")
-            echo "trtllm/disaggregated/high-performance"
+        "vllm-router")
+            echo "vllm/router"
+            ;;
+        "sglang-router")
+            echo "sglang/router"
+            ;;
+        "trtllm-router")
+            echo "trtllm/router"
             ;;
         *)
-            # For other examples (hello-world, multi-replica-vllm, kv-routing)
+            # For other examples (hello-world, multi-replica-vllm)
             echo "$example"
             ;;
     esac
@@ -278,7 +284,7 @@ fi
 success "Manifest file found: ${MANIFEST_FILE}"
 
 # Check for HF token secret (for models that need it)
-if [[ "$EXAMPLE" =~ ^(vllm|sglang|trtllm|multi-replica-vllm|vllm-disagg|sglang-disagg|trtllm-disagg)$ ]]; then
+if [[ "$EXAMPLE" != "hello-world" ]]; then
     if ! kubectl get secret hf-token-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
         warn "HuggingFace token secret not found"
 
@@ -325,7 +331,7 @@ if [[ "$EXAMPLE" =~ ^(vllm|sglang|trtllm|multi-replica-vllm|vllm-disagg|sglang-d
 fi
 
 # Check for NGC token secret (for TensorRT-LLM examples)
-if [[ "$EXAMPLE" =~ ^(trtllm-aggregated-default|trtllm-aggregated-high-performance|trtllm-disaggregated-default|trtllm-disaggregated-high-performance)$ ]]; then
+if [[ "$EXAMPLE" =~ ^trtllm ]]; then
     if ! kubectl get secret ngc-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
         warn "NGC (NVIDIA GPU Cloud) token secret not found"
         warn "TensorRT-LLM examples require NGC authentication to pull container images"
@@ -527,7 +533,7 @@ case "$EXAMPLE" in
         echo "  kubectl port-forward deployment/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"
         echo "  curl http://localhost:8000/health"
         ;;
-    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance")
+    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"vllm-router"|"sglang-router"|"trtllm-router")
         echo "Test the ${EXAMPLE} service:"
         echo "  # Use Service (recommended) - enables both API access and metrics collection"
         echo "  kubectl port-forward service/${EXAMPLE}-frontend 8000:8000 -n ${NAMESPACE}"

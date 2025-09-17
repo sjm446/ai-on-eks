@@ -309,7 +309,7 @@ case "$EXAMPLE" in
         # Test any hello-world specific endpoints
         ;;
 
-    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"multi-replica-vllm"|"kv-routing")
+    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"multi-replica-vllm"|"vllm-router"|"sglang-router"|"trtllm-router")
         info "Testing LLM service endpoints..."
 
         # Test models endpoint
@@ -328,18 +328,95 @@ case "$EXAMPLE" in
         info "Testing chat completions endpoint..."
         COMPLETIONS_URL="${BASE_URL}/v1/chat/completions"
 
-        # Set model name based on the example
-        case "$EXAMPLE" in
-            "vllm-aggregated-default"|"vllm-disaggregated-default") MODEL_NAME="Qwen/Qwen3-8B" ;;
-            "multi-replica-vllm"|"kv-routing") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
-            "sglang-aggregated-default"|"sglang-disaggregated-default") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
-            "trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
-            *)
-                # Fallback to dynamic detection for other cases
-                MODEL_NAME=$(curl -s "$MODELS_URL" 2>/dev/null | jq -r '.data[0].id' 2>/dev/null || echo "default")
-                ;;
-        esac
-        info "Using model: ${MODEL_NAME} for testing ${EXAMPLE}"
+        # Dynamic model selection
+        info "Discovering available models..."
+        MODELS_RESPONSE=$(curl -s "$MODELS_URL" 2>/dev/null || echo "")
+        
+        if [ -n "$MODELS_RESPONSE" ] && ! echo "$MODELS_RESPONSE" | grep -q -i "error"; then
+            # Extract model names from the response
+            AVAILABLE_MODELS=()
+            if command -v jq >/dev/null 2>&1; then
+                # Try to parse as JSON with .data array first (OpenAI format)
+                if echo "$MODELS_RESPONSE" | jq -e '.data' >/dev/null 2>&1; then
+                    while IFS= read -r model; do
+                        if [ -n "$model" ] && [ "$model" != "null" ]; then
+                            AVAILABLE_MODELS+=("$model")
+                        fi
+                    done < <(echo "$MODELS_RESPONSE" | jq -r '.data[]?.id // empty' 2>/dev/null)
+                # Try to parse as simple JSON array or string
+                elif echo "$MODELS_RESPONSE" | jq -e '.' >/dev/null 2>&1; then
+                    # Check if it's a simple string (quoted model name)
+                    if echo "$MODELS_RESPONSE" | jq -e '. | type == "string"' >/dev/null 2>&1; then
+                        MODEL_NAME=$(echo "$MODELS_RESPONSE" | jq -r '.')
+                        AVAILABLE_MODELS+=("$MODEL_NAME")
+                    # Check if it's an array of strings
+                    elif echo "$MODELS_RESPONSE" | jq -e '. | type == "array"' >/dev/null 2>&1; then
+                        while IFS= read -r model; do
+                            if [ -n "$model" ] && [ "$model" != "null" ]; then
+                                AVAILABLE_MODELS+=("$model")
+                            fi
+                        done < <(echo "$MODELS_RESPONSE" | jq -r '.[]' 2>/dev/null)
+                    fi
+                fi
+            fi
+            
+            # Fallback: extract from plain text if jq parsing failed
+            if [ ${#AVAILABLE_MODELS[@]} -eq 0 ]; then
+                # Try to extract quoted strings (model names)
+                while IFS= read -r line; do
+                    if [[ "$line" =~ \"([^\"]+)\" ]]; then
+                        model="${BASH_REMATCH[1]}"
+                        if [[ "$model" != "data" ]] && [[ "$model" != "id" ]] && [[ "$model" != "object" ]]; then
+                            AVAILABLE_MODELS+=("$model")
+                        fi
+                    fi
+                done <<< "$MODELS_RESPONSE"
+            fi
+
+            # Model selection logic
+            if [ ${#AVAILABLE_MODELS[@]} -eq 0 ]; then
+                warn "No models found in response, falling back to generic model name"
+                MODEL_NAME="default-model"
+            elif [ ${#AVAILABLE_MODELS[@]} -eq 1 ]; then
+                MODEL_NAME="${AVAILABLE_MODELS[0]}"
+                info "Using the only available model: ${MODEL_NAME}"
+            else
+                info "Multiple models available:"
+                for i in "${!AVAILABLE_MODELS[@]}"; do
+                    echo "  $((i+1)). ${AVAILABLE_MODELS[i]}"
+                done
+                echo ""
+
+                # Interactive model selection
+                while true; do
+                    read -p "Select a model for testing (1-${#AVAILABLE_MODELS[@]}) or press Enter for first model: " model_selection
+                    
+                    if [ -z "$model_selection" ]; then
+                        # Default to first model if user just presses Enter
+                        MODEL_NAME="${AVAILABLE_MODELS[0]}"
+                        info "Using default model: ${MODEL_NAME}"
+                        break
+                    elif [[ "$model_selection" =~ ^[0-9]+$ ]] && [ "$model_selection" -ge 1 ] && [ "$model_selection" -le ${#AVAILABLE_MODELS[@]} ]; then
+                        MODEL_NAME="${AVAILABLE_MODELS[$((model_selection-1))]}"
+                        info "Using selected model: ${MODEL_NAME}"
+                        break
+                    else
+                        error "Invalid selection. Please choose 1-${#AVAILABLE_MODELS[@]} or press Enter for default."
+                    fi
+                done
+            fi
+        else
+            warn "Could not retrieve models list, falling back to default model selection"
+            # Fallback to example-based model names as backup
+            case "$EXAMPLE" in
+                "vllm-aggregated-default") MODEL_NAME="Qwen/Qwen3-8B" ;;
+                "vllm-disaggregated-default"|"multi-replica-vllm"|"vllm-router") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
+                "sglang-aggregated-default"|"sglang-disaggregated-default"|"sglang-router") MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Llama-8B" ;;
+                "trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-router") MODEL_NAME="Qwen/Qwen3-0.6B" ;;
+                *) MODEL_NAME="default-model" ;;
+            esac
+            info "Using fallback model: ${MODEL_NAME}"
+        fi
 
         CHAT_PAYLOAD=$(cat <<EOF
 {
@@ -367,12 +444,25 @@ EOF
             if [ -n "$RESPONSE" ]; then
                 echo "Error response:"
                 echo "$RESPONSE" | head -5
+                
+                # Check for common instance ID routing issues
+                if echo "$RESPONSE" | grep -q "instance_id.*not found"; then
+                    warn "Detected instance ID routing issue - this may indicate:"
+                    echo "  1. Frontend has cached old instance IDs from a previous deployment"
+                    echo "  2. Workers are still starting up or failed to register properly"
+                    echo "  3. Network connectivity issues between frontend and workers"
+                    echo ""
+                    echo "To fix this issue:"
+                    echo "  1. Wait for all worker pods to be fully ready: kubectl get pods -n ${NAMESPACE} -l app=${EXAMPLE}"
+                    echo "  2. Check worker logs: kubectl logs -n ${NAMESPACE} -l app=${EXAMPLE},component=*Worker"
+                    echo "  3. Restart frontend pod to clear cache: kubectl delete pod -n ${NAMESPACE} -l app=${EXAMPLE},component=Frontend"
+                fi
             fi
         fi
 
         # Advanced testing for specific examples
         case "$EXAMPLE" in
-            "vllm-disaggregated-default"|"sglang-disaggregated-default"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance")
+            "vllm-disaggregated-default"|"sglang-disaggregated-default"|"trtllm-disaggregated-default")
                 echo ""
                 info "Testing disaggregation with long context..."
                 LONG_CONTEXT=$(python3 -c "print('Long context test: ' + 'word ' * 100)")
@@ -397,10 +487,17 @@ EOF
                 fi
                 ;;
 
-            "kv-routing")
+            "vllm-router"|"sglang-router"|"trtllm-router")
                 echo ""
                 info "Testing KV routing with shared prefixes..."
                 SHARED_SYSTEM="You are a helpful AI assistant."
+                
+                # Clean up any existing test files
+                rm -f /tmp/kv_test_*.json 2>/dev/null
+                
+                # Store background job PIDs
+                KV_PIDS=()
+                
                 for i in {1..3}; do
                     KV_PAYLOAD=$(cat <<EOF
 {
@@ -413,14 +510,73 @@ EOF
 }
 EOF
 )
-                    curl -s -X POST "$COMPLETIONS_URL" \
-                        -H "Content-Type: application/json" \
-                        -d "$KV_PAYLOAD" > /tmp/kv_test_$i.json &
+                    # Add timeout to curl command and run in background
+                    (
+                        curl -s -m 30 -X POST "$COMPLETIONS_URL" \
+                            -H "Content-Type: application/json" \
+                            -d "$KV_PAYLOAD" > /tmp/kv_test_$i.json 2>/dev/null || \
+                        echo "timeout_or_error" > /tmp/kv_test_$i.json
+                    ) &
+                    KV_PIDS+=($!)
                 done
-                wait
-
-                success_count=$(ls /tmp/kv_test_*.json 2>/dev/null | wc -l)
-                success "✓ KV routing test: ${success_count}/3 requests completed"
+                
+                # Wait for all requests with timeout
+                info "Waiting for KV routing test requests (max 45 seconds)..."
+                WAIT_COUNT=0
+                MAX_WAIT=45
+                
+                while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+                    # Check if all jobs are done
+                    JOBS_RUNNING=false
+                    for pid in "${KV_PIDS[@]}"; do
+                        if kill -0 "$pid" 2>/dev/null; then
+                            JOBS_RUNNING=true
+                            break
+                        fi
+                    done
+                    
+                    if [ "$JOBS_RUNNING" = false ]; then
+                        break
+                    fi
+                    
+                    sleep 1
+                    WAIT_COUNT=$((WAIT_COUNT + 1))
+                done
+                
+                # Kill any remaining jobs if timeout reached
+                if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+                    warn "KV routing test timed out, killing remaining requests..."
+                    for pid in "${KV_PIDS[@]}"; do
+                        kill "$pid" 2>/dev/null || true
+                    done
+                fi
+                
+                # Count successful responses
+                success_count=0
+                error_count=0
+                
+                for i in {1..3}; do
+                    if [ -f "/tmp/kv_test_$i.json" ]; then
+                        if ! grep -q "timeout_or_error" "/tmp/kv_test_$i.json" 2>/dev/null; then
+                            success_count=$((success_count + 1))
+                        else
+                            error_count=$((error_count + 1))
+                        fi
+                    else
+                        error_count=$((error_count + 1))
+                    fi
+                done
+                
+                if [ $success_count -eq 3 ]; then
+                    success "✓ KV routing test: ${success_count}/3 requests completed successfully"
+                elif [ $success_count -gt 0 ]; then
+                    warn "✓ KV routing test: ${success_count}/3 requests completed (${error_count} failed/timed out)"
+                else
+                    warn "✗ KV routing test: All requests failed or timed out"
+                fi
+                
+                # Clean up test files
+                rm -f /tmp/kv_test_*.json 2>/dev/null
                 ;;
         esac
         ;;
@@ -491,7 +647,7 @@ echo "  1. Port forwarding: kubectl port-forward service/${SERVICE_NAME} ${LOCAL
 echo "  2. Health check: curl http://localhost:${LOCAL_PORT}/health"
 
 case "$EXAMPLE" in
-    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"trtllm-disaggregated-high-performance"|"multi-replica-vllm"|"kv-routing")
+    "vllm-aggregated-default"|"vllm-disaggregated-default"|"sglang-aggregated-default"|"sglang-disaggregated-default"|"trtllm-aggregated-default"|"trtllm-aggregated-high-performance"|"trtllm-disaggregated-default"|"multi-replica-vllm"|"vllm-router"|"sglang-router"|"trtllm-router")
         echo "  3. List models: curl http://localhost:${LOCAL_PORT}/v1/models"
         echo "  4. Chat completion: curl -X POST http://localhost:${LOCAL_PORT}/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\": \"${MODEL_NAME}\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}], \"max_tokens\": 50}'"
         ;;
