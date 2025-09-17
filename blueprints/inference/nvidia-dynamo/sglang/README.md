@@ -1,202 +1,112 @@
-# SGLang Example
+# SGLang Deployments
 
-Deploy SGLang-based LLM serving with advanced RadixAttention caching using NVIDIA Dynamo v0.4.1.
+This directory contains SGLang deployment configurations for the NVIDIA Dynamo platform with RadixAttention caching.
+
+## Available Deployments
+
+| Deployment | Description | Model | Resources |
+|------------|-------------|-------|-----------|
+| `sglang-aggregated-default` | Single worker with RadixAttention | DeepSeek-R1-Distill-Llama-8B | 1 GPU, 10 CPU, 20Gi RAM |
+| `sglang-disaggregated-default` | Separate prefill/decode workers | DeepSeek-R1-Distill-Llama-8B | 1+1 GPUs, 8 CPU each |
+| `sglang-router` | KV-aware routing for cache optimization | Configurable | Configurable |
 
 ## Architecture
 
-```text
-Client Requests → Frontend → SGLang Worker (Aggregated + RadixAttention)
-```
+### Aggregated Architecture (`sglang-aggregated-default`)
+- **Single worker** handles both prefill and decode phases
+- **RadixAttention caching** for efficient memory management
+- **Better for**: Single-user scenarios, simpler deployment
 
-This example demonstrates:
-- SGLang backend integration with RadixAttention caching
-- Advanced memory management for high-throughput serving
-- Multi-model discovery and aggregation
-- OpenAI-compatible API with enhanced caching performance
-- G5 GPU node selection for cost-effective deployment
+### Disaggregated Architecture (`sglang-disaggregated-default`)
+- **Separate workers** for prefill and decode phases with NIXL transfer backend
+- **Better for**: High throughput, concurrent requests, production workloads
+- **Communication**: Uses NIXL (NVIDIA Inter-X Link) for worker coordination
 
 ## Key Features
 
-### RadixAttention Caching
-SGLang's RadixAttention provides significant performance improvements:
-- **Prefix Caching**: Automatic detection and reuse of common prompt prefixes
-- **KV Cache Optimization**: Intelligent cache eviction and management
+### SGLang Optimizations
+- **RadixAttention**: Advanced attention mechanism with automatic prefix caching
+- **Prefix Sharing**: Automatic detection and reuse of common prompt prefixes
 - **Memory Efficiency**: Up to 5x reduction in memory usage for repetitive queries
-- **Latency Reduction**: 2-10x faster response times for cached prefixes
+- **Fast Sampling**: Optimized token generation algorithms
+- **Dynamic Batching**: Efficient request batching and scheduling
+- **NIXL Transfer Backend**: High-speed inter-worker communication for disaggregated mode
 
-### SGLang-Specific Optimizations
-- **Advanced Batching**: Dynamic batching for better throughput
-- **Memory Pooling**: Efficient GPU memory management
-- **Structured Generation**: Built-in support for JSON/XML output formats
-- **Fast Tokenization**: Optimized tokenizer with caching
+### Integration Benefits
+- **Automatic Model Discovery**: Workers register automatically with frontend
+- **Advanced Caching**: RadixAttention provides intelligent cache management
+- **OpenAI Compatible API**: Standard `/v1/chat/completions` endpoints
+- **Namespace Management**: Automatic namespace clearing on startup
 
 ## Prerequisites
 
 - Dynamo platform deployed in your EKS cluster
 - `dynamo-cloud` namespace with secrets configured
-- G5 GPU nodes available (at least 1 GPU with 24GB VRAM)
-- HuggingFace token with model access permissions
+- G5 GPU nodes available (at least 1-2 GPUs with 24GB VRAM each)
+- HuggingFace token secret configured
 
-## YAML Structure Explained
+## Quick Start
 
-### Frontend Configuration
-```yaml
-Frontend:
-  dynamoNamespace: sglang          # Service discovery namespace
-  componentType: main              # HTTP API entry point
-  replicas: 1                      # Single frontend instance
-  resources:
-    requests:
-      cpu: "5"                     # Higher CPU for request processing
-      memory: "10Gi"               # Memory for routing and caching metadata
-  extraPodSpec:
-    nodeSelector:
-      karpenter.sh/nodepool: cpu-karpenter  # CPU-only node
-    mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
-      workingDir: /workspace/components/backends/sglang
-      args:
-        # Clear namespace for clean startup
-        - "python3 -m dynamo.sglang.utils.clear_namespace --namespace sglang && python3 -m dynamo.frontend --http-port=8000"
-```
-
-**Key Points:**
-- **Namespace Clearing**: SGLang clears its namespace on startup to prevent stale worker registrations
-- **Higher Resource Allocation**: SGLang frontend requires more CPU/memory than other backends
-- **CPU Node Placement**: Frontend doesn't need GPU, runs on cost-effective CPU nodes
-
-### Worker Configuration
-```yaml
-SGLangWorker:
-  dynamoNamespace: sglang          # Must match frontend namespace
-  componentType: worker            # Inference processing unit
-  envFromSecret: hf-token-secret   # HuggingFace authentication
-  replicas: 1                      # Single worker (can scale)
-  resources:
-    requests:
-      cpu: "10"                    # High CPU for model operations
-      memory: "20Gi"               # Large memory for model + cache
-      gpu: "1"                     # Single GPU requirement
-  extraPodSpec:
-    nodeSelector:
-      karpenter.sh/nodepool: g5-gpu-karpenter  # G5 GPU instances
-    tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
-    mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
-      workingDir: /workspace/components/backends/sglang
-      args:
-        - "python3"
-        - "-m"
-        - "dynamo.sglang.worker"
-        - "--model-path"
-        - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"  # Large, capable model
-        - "--served-model-name"
-        - "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-        - "--page-size"
-        - "16"                     # RadixAttention page size (tune for workload)
-        - "--tp"
-        - "1"                      # Tensor parallelism (1 GPU)
-        - "--trust-remote-code"    # Enable custom model code
-        - "--skip-tokenizer-init"  # Optimize startup time
-```
-
-**Key Parameters:**
-- **Model Selection**: Uses DeepSeek-R1 model for advanced reasoning capabilities
-- **Page Size**: RadixAttention cache page size (16 is balanced for most workloads)
-- **Trust Remote Code**: Enables custom model implementations
-- **Skip Tokenizer Init**: Faster worker startup by deferring tokenizer initialization
-
-## Node Selection Strategy
-
-### GPU Worker Placement
-```yaml
-extraPodSpec:
-  nodeSelector:
-    karpenter.sh/nodepool: g5-gpu-karpenter  # G5 instances for cost-effectiveness
-  tolerations:
-  - key: nvidia.com/gpu
-    operator: Exists
-    effect: NoSchedule
-```
-
-**Why G5 for SGLang:**
-- **Memory Bandwidth**: A10G GPUs provide sufficient bandwidth for RadixAttention
-- **Cost Effectiveness**: Best price/performance for cache-heavy workloads
-- **Availability**: Good availability across regions
-- **Model Size**: 24GB VRAM handles most models up to 20B parameters
-
-### Alternative Node Configurations
-
-**For Cache-Heavy Workloads:**
-```yaml
-nodeSelector:
-  karpenter.sh/nodepool: g6-gpu-karpenter  # L4 GPUs with higher memory bandwidth
-```
-
-**For Large Models:**
-```yaml
-nodeSelector:
-  karpenter.sh/nodepool: p5-gpu-karpenter
-  node.kubernetes.io/instance-type: p5.48xlarge  # H100 for 70B+ models
-```
-
-## Deployment
-
-### Using the Deployment Script (Recommended)
+### Deploy Aggregated SGLang
 ```bash
 cd blueprints/inference/nvidia-dynamo
-./deploy.sh sglang
+./deploy.sh sglang-aggregated-default
 ```
 
-### Manual Deployment
+### Deploy Disaggregated SGLang
 ```bash
-# Ensure HuggingFace token secret exists
-kubectl get secret hf-token-secret -n dynamo-cloud
-
-# Deploy SGLang
-kubectl apply -f sglang/sglang.yaml -n dynamo-cloud
-
-# Monitor deployment
-kubectl get pods -n dynamo-cloud -l app=sglang -w
+cd blueprints/inference/nvidia-dynamo
+./deploy.sh sglang-disaggregated-default
 ```
 
-## Model Configuration
+## Configuration Details
 
-This example uses `deepseek-ai/DeepSeek-R1-Distill-Llama-8B` which demonstrates SGLang's capabilities well. You can modify the deployment YAML to use other supported models like:
+### Aggregated Default
+- **Model**: `deepseek-ai/DeepSeek-R1-Distill-Llama-8B`
+- **Resources**: 1 GPU, 10 CPU, 20Gi RAM
+- **Features**: RadixAttention with 16-page size, trust remote code, skip tokenizer init
+- **Frontend**: Higher resource allocation (5 CPU, 10Gi) due to namespace clearing
 
-- `meta-llama/Llama-3.1-8B-Instruct`
-- `Qwen/Qwen3-0.6B` (for smaller resource requirements)
-- `mistralai/Mistral-7B-Instruct-v0.3`
+### Disaggregated Default
+- **Model**: `deepseek-ai/DeepSeek-R1-Distill-Llama-8B` 
+- **Architecture**: SGLangPrefillWorker + SGLangDecodeWorker
+- **Resources**: 1 GPU, 8 CPU, 20Gi RAM per worker
+- **Communication**: NIXL transfer backend for high-speed worker coordination
+- **Features**: Same RadixAttention optimizations across both workers
+
+## SGLang-Specific Parameters
+
+### Common Parameters
+```bash
+--model-path deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+--served-model-name deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+--page-size 16                    # RadixAttention page size
+--tp 1                           # Tensor parallelism
+--trust-remote-code              # Allow custom model code
+--skip-tokenizer-init            # Faster startup
+```
+
+### Disaggregated-Specific Parameters
+```bash
+--disaggregation-mode prefill     # For prefill worker
+--disaggregation-mode decode      # For decode worker  
+--disaggregation-transfer-backend nixl  # High-speed communication
+```
 
 ## Testing
 
 ### Basic Health Check
 ```bash
-# Port forward to frontend
-# Port forward via Service (recommended) - enables both API access and metrics collection
-kubectl port-forward service/sglang-frontend 8000:8000 -n dynamo-cloud
-
-# Alternative: Direct deployment access
-# kubectl port-forward deployment/sglang-frontend 8000:8000 -n dynamo-cloud
+# Port forward to frontend service
+kubectl port-forward service/sglang-aggregated-default-frontend 8000:8000 -n dynamo-cloud
 
 # Test health endpoint
 curl http://localhost:8000/health
-# Expected: {"endpoints":["dyn://dynamo.worker.generate","dyn://dynamo.backend.generate"],"status":"healthy"}
-```
-
-### Model Discovery
-```bash
-# Check available models (includes cross-backend discovery)
-curl http://localhost:8000/v1/models
-# Expected: List of available models from all discovered workers
 ```
 
 ### Chat Completions
 ```bash
-# Test reasoning capabilities
+# Test reasoning capabilities with DeepSeek model
 curl -X POST http://localhost:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{
@@ -211,7 +121,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 
 ### Cache Performance Test
 ```bash
-# Test prefix caching with repeated prompt
+# Test prefix caching with repeated prompts
 for i in {1..3}; do
   echo "Request $i:"
   time curl -X POST http://localhost:8000/v1/chat/completions \
@@ -219,151 +129,142 @@ for i in {1..3}; do
     -d '{
       "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
       "messages": [
-        {"role": "system", "content": "You are a helpful assistant. Always start your response with a greeting."},
-        {"role": "user", "content": "What is the capital of France?"}
+        {"role": "system", "content": "You are a helpful assistant. Always be concise."},
+        {"role": "user", "content": "What is machine learning?"}
       ],
       "max_tokens": 50
     }' 2>/dev/null | jq '.choices[0].message.content'
 done
-# Subsequent requests should be significantly faster due to prefix caching
+# Subsequent requests should be faster due to prefix caching
 ```
 
 ## Monitoring
 
 ### Pod Status
 ```bash
-# Check all SGLang components
-kubectl get pods -n dynamo-cloud -l app=sglang
+# Check deployment status
+kubectl get dynamographdeployment sglang-aggregated-default -n dynamo-cloud
 
-# Check worker specifically
-kubectl get pods -n dynamo-cloud -l componentType=worker,app=sglang
+# Check all SGLang pods
+kubectl get pods -n dynamo-cloud -l app=sglang-aggregated-default
 ```
 
-### Logs and Debugging
+### Logs and RadixAttention Metrics
 ```bash
-# Frontend logs
-kubectl logs -n dynamo-cloud -l componentType=main,app=sglang -f
+# Frontend logs (includes namespace clearing)
+kubectl logs -n dynamo-cloud -l componentType=main,app=sglang-aggregated-default -f
 
-# Worker logs
-kubectl logs -n dynamo-cloud -l componentType=worker,app=sglang -f
+# Worker logs (includes RadixAttention cache activity)
+kubectl logs -n dynamo-cloud -l componentType=worker,app=sglang-aggregated-default -f
 
-# Check for cache hits in worker logs
-kubectl logs -n dynamo-cloud -l componentType=worker,app=sglang | grep -i "cache\|hit\|radix"
+# Check for cache hits and RadixAttention activity
+kubectl logs -n dynamo-cloud -l componentType=worker -f | grep -i "cache\|radix\|hit"
 ```
 
-### Performance Metrics
+### Disaggregated Monitoring
 ```bash
-# Check DynamoGraphDeployment status
-kubectl get dynamographdeployment sglang -n dynamo-cloud -o yaml
+# Check both prefill and decode workers
+kubectl get pods -n dynamo-cloud -l app=sglang-disaggregated-default
 
-# Monitor resource usage
-kubectl top pods -n dynamo-cloud -l app=sglang
+# Prefill worker logs
+kubectl logs -n dynamo-cloud -l app=sglang-disaggregated-default | grep prefill
+
+# Decode worker logs  
+kubectl logs -n dynamo-cloud -l app=sglang-disaggregated-default | grep decode
 ```
 
-## Advanced Configuration
+## GPU Requirements and Node Selection
 
-### Tuning RadixAttention
+### Default Node Configuration
+```yaml
+nodeSelector:
+  karpenter.sh/nodepool: g5-gpu-karpenter
+tolerations:
+- key: nvidia.com/gpu
+  operator: Exists
+  effect: NoSchedule
+```
+
+### Why G5 for SGLang
+- **A10G Memory Bandwidth**: Sufficient for RadixAttention operations
+- **Cost Effectiveness**: Best price/performance for cache-heavy workloads
+- **RadixAttention Optimization**: Good balance of compute and memory for caching
+
+### Alternative Configurations
+
+**For Cache-Heavy Workloads:**
+```yaml
+nodeSelector:
+  karpenter.sh/nodepool: g6-gpu-karpenter  # L4 GPUs with higher bandwidth
+```
+
+## Performance Tuning
+
+### RadixAttention Optimization
 ```yaml
 args:
   - "--page-size"
   - "32"          # Larger pages for longer contexts (default: 16)
   - "--max-total-tokens"
   - "32768"       # Maximum context length
-  - "--disable-disk-cache"  # Disable disk caching for pure memory operation
 ```
 
-### Multi-GPU Setup
-```yaml
-resources:
-  requests:
-    gpu: "2"      # Request 2 GPUs
-extraPodSpec:
-  nodeSelector:
-    node.kubernetes.io/instance-type: g5.12xlarge  # 4 GPU instance
-args:
-  - "--tp"
-  - "2"          # 2-way tensor parallelism
-```
-
-### Custom Health Probes for Large Models
-```yaml
-readinessProbe:
-  exec:
-    command:
-      - /bin/sh
-      - -c
-      - 'python3 -c "import requests; requests.get(\"http://localhost:9090/health\").raise_for_status()"'
-  initialDelaySeconds: 180    # 3 minutes for large model loading
-  periodSeconds: 30
-  timeoutSeconds: 10
-  failureThreshold: 20        # Allow extended startup time
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Worker Not Starting:**
-```bash
-# Check GPU availability
-kubectl describe node <gpu-node> | grep -i gpu
-
-# Check model download progress
-kubectl logs <sglang-worker-pod> -n dynamo-cloud | grep -i download
-```
-
-**Frontend Not Finding Worker:**
-```bash
-# Verify namespace clearing worked
-kubectl logs <sglang-frontend-pod> -n dynamo-cloud | grep -i "clear_namespace"
-
-# Check worker registration
-kubectl logs <sglang-worker-pod> -n dynamo-cloud | grep -i "register\|ready"
-```
-
-**Poor Cache Performance:**
-```bash
-# Check RadixAttention initialization
-kubectl logs <sglang-worker-pod> -n dynamo-cloud | grep -i "radix\|cache"
-
-# Verify page size settings
-kubectl logs <sglang-worker-pod> -n dynamo-cloud | grep -i "page-size"
-```
-
-### Performance Optimization
-
-**For High Throughput:**
-- Increase `--page-size` to 32 or 64
-- Use G6 instances for higher memory bandwidth
+### For High Throughput
+- Use disaggregated architecture
 - Scale workers horizontally
+- Monitor NIXL transfer performance
+- Optimize page size for workload
 
-**For Low Latency:**
-- Use smaller models (e.g., Qwen3-0.6B)
-- Enable aggressive caching with larger cache sizes
-- Use on-demand instances for consistent performance
+### For Low Latency
+- Use aggregated architecture
+- Enable aggressive caching
+- Use consistent prompt patterns to maximize prefix reuse
 
 ## External Access
 
 For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments.
 
 **SGLang-Specific Notes:**
-- RadixAttention caching benefits from session affinity (sticky sessions)
-- Consider enabling ALB sticky sessions for multi-turn conversations
-- See root README.md for complete setup instructions
+- RadixAttention benefits from session affinity for multi-turn conversations
+- Consider enabling sticky sessions for optimal cache performance
 
 ## Cleanup
 
 ```bash
-# Remove SGLang deployment
-kubectl delete dynamographdeployment sglang -n dynamo-cloud
+# Remove deployment
+kubectl delete dynamographdeployment sglang-aggregated-default -n dynamo-cloud
+# or
+kubectl delete dynamographdeployment sglang-disaggregated-default -n dynamo-cloud
+```
 
-# Verify cleanup
-kubectl get pods -n dynamo-cloud -l app=sglang
+## Troubleshooting
+
+### Common Issues
+
+**Namespace Clearing Issues:**
+```bash
+# Check if namespace clearing completed
+kubectl logs -n dynamo-cloud -l componentType=main -f | grep "clear_namespace"
+```
+
+**Worker Registration Issues:**
+```bash
+# Check worker registration in logs
+kubectl logs -n dynamo-cloud -l componentType=worker -f | grep -i "register\|ready"
+```
+
+**RadixAttention Performance:**
+```bash
+# Monitor cache performance
+kubectl logs -n dynamo-cloud -l componentType=worker -f | grep -i "cache\|hit\|miss"
+
+# Check page size configuration
+kubectl logs -n dynamo-cloud -l componentType=worker -f | grep -i "page-size"
 ```
 
 ## References
 
 - [SGLang Official Documentation](https://github.com/sgl-project/sglang)
 - [RadixAttention Paper](https://arxiv.org/abs/2312.07104)
-- [NVIDIA Dynamo Architecture Guide](https://docs.nvidia.com/dynamo/)
+- [NVIDIA Dynamo Documentation](https://docs.nvidia.com/dynamo/)
 - [DeepSeek-R1 Model Documentation](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B)

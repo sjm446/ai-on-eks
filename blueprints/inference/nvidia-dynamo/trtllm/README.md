@@ -1,263 +1,168 @@
-# TensorRT-LLM Example
+# TensorRT-LLM Deployments
 
-⚠️ **DEPRECATED**: This directory has been replaced by multiple TensorRT-LLM variants:
+This directory contains TensorRT-LLM deployment configurations for the NVIDIA Dynamo platform with maximum inference performance optimization.
 
-- **`trtllm-default/`** - Default TensorRT-LLM configuration for small models
-- **`trtllm-high-performance/`** - High-performance configuration optimized for throughput
-- **`trtllm-70b/`** - Configuration for 70B models with 8x GPU tensor parallelism
+## Available Deployments
 
-## Migration Guide
-
-Instead of using ConfigMaps, each variant now has embedded engine configurations:
-
-```bash
-# Old approach (deprecated)
-./deploy.sh trtllm
-
-# New approach - choose specific variant
-./deploy.sh trtllm-default           # For small models
-./deploy.sh trtllm-high-performance  # For maximum throughput
-./deploy.sh trtllm-70b              # For 70B models
-```
-
-Deploy TensorRT-LLM-based LLM serving with maximum performance optimization using NVIDIA Dynamo v0.4.1.
+| Deployment | Description | Model | Resources |
+|------------|-------------|-------|-----------|
+| `trtllm-aggregated-default` | Single worker with default settings | Qwen/Qwen3-0.6B | 1 GPU, 10 CPU, 20Gi RAM |
+| `trtllm-aggregated-high-performance` | Optimized for maximum throughput | Qwen/Qwen3-0.6B | 1 GPU, 16 CPU, 32Gi RAM |
+| `trtllm-disaggregated-default` | Separate prefill/decode workers | Qwen/Qwen3-0.6B | 1+1 GPUs, 8 CPU each |
+| `trtllm-router` | KV-aware routing for cache optimization | Configurable | Configurable |
 
 ## Architecture
 
-```text
-Client Requests → Frontend → TensorRT-LLM Worker (Aggregated + Optimized Kernels)
-```
+### Aggregated Architecture
+- **Single worker** with embedded engine configurations
+- **Better for**: Lower latency, simpler deployment
+- **Resource usage**: All compute in one pod
 
-This example demonstrates:
-- TensorRT-LLM backend integration with NVIDIA Dynamo
-- Maximum inference performance with custom CUDA kernels
-- External ConfigMap-based configuration management
-- OpenAI-compatible API serving (`/v1/chat/completions`, `/v1/models`)
-- Aggregated serving mode (prefill + decode in same worker)
-- G5 GPU node selection for cost-effective inference
+### Disaggregated Architecture
+- **Separate prefill and decode workers** with specialized configurations
+- **Better for**: High throughput, concurrent requests, production workloads
+- **Resource usage**: GPUs split between prefill and decode workers
+- **Communication**: Cache transceiver for worker coordination
 
 ## Key Features
 
 ### TensorRT-LLM Optimizations
-TensorRT-LLM provides industry-leading inference performance:
 - **Custom CUDA Kernels**: Hand-optimized kernels for maximum GPU utilization
 - **Memory Optimization**: Advanced KV cache management and memory pooling
-- **Quantization Support**: INT8, FP8, and mixed-precision inference
-- **Batching Efficiency**: Optimized dynamic batching for high throughput
-- **Low Latency**: Minimal overhead for real-time applications
+- **Chunked Prefill**: Efficient handling of long sequences
+- **CUDA Graphs**: Reduced kernel launch overhead for consistent performance
+- **Inline Configuration**: Embedded engine configurations (no external ConfigMaps)
+- **Cache Transceiver**: Optimized communication for disaggregated setups
 
-### External Configuration System
-This example uses Kubernetes ConfigMaps for flexible configuration management:
-- **Runtime Configuration Changes**: Switch between performance profiles without rebuilding
-- **Environment-Specific Settings**: Different configurations for dev/staging/production
-- **Version Control**: Track configuration changes separately from application code
-- **Easy Customization**: Create custom configurations for specific use cases
+### NGC Authentication Required
+⚠️ **All TensorRT-LLM deployments require NGC (NVIDIA GPU Cloud) authentication** to pull container images.
 
 ## Prerequisites
 
 - Dynamo platform deployed in your EKS cluster
 - `dynamo-cloud` namespace with secrets configured
-- G5 GPU nodes available (at least 1 GPU with 24GB VRAM)
+- **NGC API Key secret configured** (`ngc-secret`)
+- G5 GPU nodes available (at least 1-2 GPUs with 24GB VRAM each)
 - HuggingFace token secret configured
 
-## Configuration Variants
+## Quick Start
 
-This example includes two pre-configured performance profiles:
+### Deploy Default TensorRT-LLM
+```bash
+cd blueprints/inference/nvidia-dynamo
+./deploy.sh trtllm-aggregated-default
+```
+
+### Deploy High-Performance TensorRT-LLM
+```bash
+cd blueprints/inference/nvidia-dynamo
+./deploy.sh trtllm-aggregated-high-performance
+```
+
+### Deploy Disaggregated TensorRT-LLM
+```bash
+cd blueprints/inference/nvidia-dynamo
+./deploy.sh trtllm-disaggregated-default
+```
+
+## Configuration Details
 
 ### Default Configuration
-- **Use Case**: Balanced performance for most production workloads
+- **Model**: `Qwen/Qwen3-0.6B` (small, fast model)
+- **Resources**: 1 GPU, 10 CPU, 20Gi RAM
 - **Batch Size**: 16 (conservative for stability)
 - **Max Tokens**: 8192
-- **Memory Usage**: 85% KV cache (safe allocation)
-- **Features**: Standard optimizations, chunked prefill enabled
+- **Memory Usage**: 85% GPU memory for KV cache
+- **Use Case**: Balanced performance for development and testing
 
 ### High-Performance Configuration
-- **Use Case**: Maximum throughput for high-load scenarios
+- **Model**: `Qwen/Qwen3-0.6B`
+- **Resources**: 1 GPU, 16 CPU, 32Gi RAM (higher resources)
 - **Batch Size**: 32 (aggressive batching)
 - **Max Tokens**: 16384
-- **Memory Usage**: 90% KV cache (maximum utilization)
-- **Features**: All optimizations enabled, CUDA graphs
+- **Memory Usage**: 90% GPU memory for KV cache (maximum utilization)
+- **Use Case**: Maximum throughput for production workloads
 
-## YAML Structure Explained
+### Disaggregated Configuration
+- **Model**: `Qwen/Qwen3-0.6B`
+- **Architecture**: TRTLLMPrefillWorker + TRTLLMDecodeWorker
+- **Resources**: 1 GPU, 8 CPU, 20Gi RAM per worker
+- **Strategy**: `decode_first` for optimal request handling
+- **Cache Transceiver**: Default backend for worker communication
+- **Use Case**: High-throughput, concurrent request processing
 
-### Frontend Configuration
+## Inline Engine Configurations
+
+All TensorRT-LLM deployments use embedded engine configurations created at runtime:
+
+### Default Engine Config
 ```yaml
-Frontend:
-  dynamoNamespace: trtllm           # Service discovery namespace
-  componentType: main               # HTTP API entry point
-  replicas: 1                       # Single frontend instance
-  resources:
-    requests:
-      cpu: "1"                      # Lightweight for request routing
-      memory: "2Gi"                 # Minimal memory for HTTP server
-  extraPodSpec:
-    nodeSelector:
-      karpenter.sh/nodepool: cpu-karpenter  # CPU-only node (cost effective)
-    mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
-      workingDir: /workspace/components/backends/trtllm
-      command: ["/bin/sh", "-c"]
-      args: ["python3 -m dynamo.frontend --http-port 8000"]
+tensor_parallel_size: 1
+max_num_tokens: 8192
+max_batch_size: 16
+trust_remote_code: true
+backend: pytorch
+enable_chunked_prefill: true
+kv_cache_config:
+  free_gpu_memory_fraction: 0.85
+cuda_graph_config:
+  max_batch_size: 16
 ```
 
-### TensorRT-LLM Worker Configuration
+### High-Performance Engine Config
 ```yaml
-TRTLLMWorker:
-  dynamoNamespace: trtllm           # Service discovery namespace
-  componentType: worker             # Inference worker
-  replicas: 1                       # Single worker instance
-  envFromSecret: hf-token-secret    # HuggingFace authentication
-  resources:
-    requests:
-      cpu: "8"                      # High CPU for model operations
-      memory: "20Gi"                # Sufficient memory for model loading
-      gpu: "1"                      # Single GPU allocation
-  extraPodSpec:
-    nodeSelector:
-      karpenter.sh/nodepool: g5-gpu-karpenter  # G5 GPU nodes
-    volumes:
-    - name: engine-config-volume    # ConfigMap volume mount
-      configMap:
-        name: trtllm-engine-config-default
-        items:
-        - key: agg.yaml
-          path: agg.yaml
-    mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
-      workingDir: /workspace/components/backends/trtllm
-      command: ["/bin/sh", "-c"]
-      args: ["python3 -m dynamo.trtllm --extra-engine-args external_configs/agg.yaml"]
-      volumeMounts:
-      - name: engine-config-volume
-        mountPath: /workspace/components/backends/trtllm/external_configs
-        readOnly: true
+tensor_parallel_size: 1
+max_num_tokens: 16384
+max_batch_size: 32
+trust_remote_code: true
+backend: pytorch
+enable_chunked_prefill: true
+kv_cache_config:
+  free_gpu_memory_fraction: 0.90
+cuda_graph_config:
+  max_batch_size: 32
 ```
 
-## ConfigMap Considerations
+## NGC Authentication Setup
 
-### Why External ConfigMaps?
-TensorRT-LLM requires complex engine configurations that benefit from external management:
+### Automatic Setup (via Deploy Script)
+The deploy script will automatically create NGC secrets if you provide the API key:
 
-1. **Performance Tuning**: Different workloads need different optimization settings
-2. **Environment Flexibility**: Dev/staging/production can use different configurations
-3. **Runtime Updates**: Change configurations without rebuilding container images
-4. **Version Control**: Track configuration changes separately from application code
-
-### ConfigMap Structure
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: trtllm-engine-config-default
-  namespace: dynamo-cloud
-data:
-  agg.yaml: |
-    tensor_parallel_size: 1
-    moe_expert_parallel_size: 1
-    enable_attention_dp: false
-    max_num_tokens: 8192
-    max_batch_size: 16
-    trust_remote_code: true
-    backend: pytorch
-    enable_chunked_prefill: true
-    kv_cache_config:
-      free_gpu_memory_fraction: 0.85
-    cuda_graph_config:
-      max_batch_size: 16
-```
-
-### Volume Mount Integration
-The ConfigMap is mounted as a volume in the worker pod:
-```yaml
-volumes:
-- name: engine-config-volume
-  configMap:
-    name: trtllm-engine-config-default
-    items:
-    - key: agg.yaml
-      path: agg.yaml
-
-volumeMounts:
-- name: engine-config-volume
-  mountPath: /workspace/components/backends/trtllm/external_configs
-  readOnly: true
-```
-
-## Deployment
-
-### Option 1: Using Deploy Script (Recommended)
 ```bash
-# Navigate to the blueprint directory
-cd blueprints/inference/nvidia-dynamo
-
-# Deploy TensorRT-LLM with interactive setup
-./deploy.sh trtllm
-
-# Or deploy directly
-kubectl apply -f trtllm/configmaps/
-kubectl apply -f trtllm/trtllm.yaml
+# Set environment variable
+export NGC_API_KEY=your-ngc-api-key-here
+./deploy.sh trtllm-aggregated-default
 ```
 
-### Option 2: Manual Deployment
+### Manual Setup
 ```bash
-# 1. Deploy ConfigMaps first
-kubectl apply -f configmaps/trtllm-engine-config-default.yaml
-kubectl apply -f configmaps/trtllm-engine-config-high-performance.yaml
+# Get NGC API Key from https://ngc.nvidia.com
+# Navigate to Setup → Generate API Key
 
-# 2. Deploy the TensorRT-LLM service
-kubectl apply -f trtllm.yaml
-
-# 3. Verify deployment
-kubectl get pods -n dynamo-cloud -l nvidia.com/dynamo-namespace=trtllm
+# Create NGC secret
+kubectl create secret docker-registry ngc-secret \
+  --docker-server=nvcr.io \
+  --docker-username='$oauthtoken' \
+  --docker-password=your-ngc-api-key \
+  -n dynamo-cloud
 ```
 
-### Switching Performance Profiles
+## Testing
+
+### Basic Health Check
 ```bash
-# Switch to high-performance configuration
-kubectl patch dynamographdeployment trtllm -n dynamo-cloud --type='merge' -p='
-spec:
-  services:
-    TRTLLMWorker:
-      extraPodSpec:
-        volumes:
-        - name: engine-config-volume
-          configMap:
-            name: trtllm-engine-config-high-performance'
+# Port forward to frontend service
+kubectl port-forward service/trtllm-aggregated-default-frontend 8000:8000 -n dynamo-cloud
 
-# Restart to apply new configuration
-kubectl rollout restart dynamographdeployment/trtllm -n dynamo-cloud
-```
-
-## Testing and Validation
-
-### Health Check
-```bash
-# Check pod status
-kubectl get pods -n dynamo-cloud -l nvidia.com/dynamo-namespace=trtllm
-
-# Verify health endpoint
-# Port forward via Service (recommended) - enables both API access and metrics collection
-kubectl port-forward service/trtllm-frontend 8000:8000 -n dynamo-cloud
-
-# Alternative: Direct deployment access
-# kubectl port-forward deployment/trtllm-frontend 8000:8000 -n dynamo-cloud &
+# Test health endpoint
 curl http://localhost:8000/health
 ```
 
-Expected response:
-```json
-{
-  "status": "healthy",
-  "endpoints": ["dyn://dynamo.backend.generate"],
-  "instances": [...]
-}
-```
-
-### API Testing
+### Chat Completions
 ```bash
-# Test chat completions
+# Test inference
 curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
+  -H 'Content-Type: application/json' \
   -d '{
     "model": "Qwen/Qwen3-0.6B",
     "messages": [
@@ -266,164 +171,154 @@ curl -X POST http://localhost:8000/v1/chat/completions \
     "max_tokens": 100,
     "temperature": 0.7
   }'
-
-# Test models endpoint
-curl http://localhost:8000/v1/models
 ```
 
-### Performance Validation
+### Performance Testing
 ```bash
-# Monitor GPU utilization
-kubectl exec -it <trtllm-worker-pod> -n dynamo-cloud -- nvidia-smi
-
-# Check worker logs for performance metrics
-kubectl logs <trtllm-worker-pod> -n dynamo-cloud | grep -i "throughput\|latency"
+# Test with high-performance configuration
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "Qwen/Qwen3-0.6B",
+    "messages": [
+      {"role": "user", "content": "Generate a detailed explanation of machine learning"}
+    ],
+    "max_tokens": 500,
+    "temperature": 0.3
+  }'
 ```
 
 ## Monitoring
 
-### Key Metrics to Monitor
-- **GPU Utilization**: Should be >80% during inference
-- **Memory Usage**: Monitor KV cache utilization
-- **Throughput**: Tokens per second
-- **Latency**: Time to first token and total response time
-- **Batch Efficiency**: Actual vs configured batch sizes
-
-### Grafana Dashboards
-Access pre-configured dashboards:
+### Pod Status
 ```bash
-kubectl port-forward -n kube-prometheus-stack svc/kube-prometheus-stack-grafana 3000:80
-# Navigate to Dynamo dashboards in Grafana
+# Check deployment status
+kubectl get dynamographdeployment trtllm-aggregated-default -n dynamo-cloud
+
+# Check pods
+kubectl get pods -n dynamo-cloud -l app=trtllm-aggregated-default
 ```
 
-## Troubleshooting
-
-### Common Issues
-
-#### Pod Fails to Start
+### Performance Monitoring
 ```bash
-# Check pod events
-kubectl describe pod <trtllm-worker-pod> -n dynamo-cloud
+# GPU utilization (should be >80% during inference)
+kubectl exec -it <trtllm-worker-pod> -n dynamo-cloud -- nvidia-smi
 
-# Check resource availability
-kubectl describe node <node-name>
-
-# Verify ConfigMap exists
-kubectl get configmap trtllm-engine-config-default -n dynamo-cloud
+# Worker logs with performance metrics
+kubectl logs -n dynamo-cloud -l componentType=worker -f | grep -i "throughput\|latency\|batch"
 ```
 
-#### Configuration Not Loading
+### Disaggregated Monitoring
 ```bash
-# Verify volume mount
-kubectl exec <trtllm-worker-pod> -n dynamo-cloud -- ls -la /workspace/components/backends/trtllm/external_configs/
+# Check both prefill and decode workers
+kubectl get pods -n dynamo-cloud -l app=trtllm-disaggregated-default
 
-# Check configuration content
-kubectl exec <trtllm-worker-pod> -n dynamo-cloud -- cat /workspace/components/backends/trtllm/external_configs/agg.yaml
+# Prefill worker logs
+kubectl logs -n dynamo-cloud -l app=trtllm-disaggregated-default | grep prefill
+
+# Decode worker logs
+kubectl logs -n dynamo-cloud -l app=trtllm-disaggregated-default | grep decode
 ```
 
-#### Performance Issues
-```bash
-# Check GPU memory usage
-kubectl exec <trtllm-worker-pod> -n dynamo-cloud -- nvidia-smi
+## GPU Requirements and Node Selection
 
-# Review worker logs for errors
-kubectl logs <trtllm-worker-pod> -n dynamo-cloud --tail=100
-
-# Switch to high-performance configuration if needed
-kubectl patch dynamographdeployment trtllm -n dynamo-cloud --type='merge' -p='
-spec:
-  services:
-    TRTLLMWorker:
-      extraPodSpec:
-        volumes:
-        - name: engine-config-volume
-          configMap:
-            name: trtllm-engine-config-high-performance'
+### Default Node Configuration
+```yaml
+nodeSelector:
+  karpenter.sh/nodepool: g5-gpu-karpenter
+tolerations:
+- key: nvidia.com/gpu
+  operator: Exists
+  effect: NoSchedule
+imagePullSecrets:
+- name: ngc-secret  # Required for NGC authentication
 ```
 
-### Debug Commands
-```bash
-# Get all TensorRT-LLM resources
-kubectl get all -n dynamo-cloud -l nvidia.com/dynamo-namespace=trtllm
-
-# Check DynamoGraphDeployment status
-kubectl describe dynamographdeployment trtllm -n dynamo-cloud
-
-# View detailed pod logs
-kubectl logs <trtllm-worker-pod> -n dynamo-cloud -f
-```
+### Recommended Instance Types
+- **G5.2xlarge**: 1x A10G GPU (24GB) - optimal for Qwen3-0.6B
+- **G5.4xlarge**: 1x A10G GPU (24GB) - for high-performance configs
+- **G5.12xlarge**: 4x A10G GPU (96GB) - for multi-GPU tensor parallelism (future)
 
 ## Performance Tuning
 
 ### For Maximum Throughput
-- Use `trtllm-engine-config-high-performance` ConfigMap
-- Increase `max_batch_size` to 32 or higher
-- Enable CUDA graphs for reduced overhead
-- Use FP16 precision throughout
+- Use `trtllm-aggregated-high-performance` configuration
+- Monitor GPU utilization and adjust batch sizes
+- Enable CUDA graphs for consistent performance
+- Use 90% GPU memory utilization
 
 ### For Low Latency
-- Use smaller batch sizes (8-16)
+- Use `trtllm-aggregated-default` with smaller batch sizes
 - Enable chunked prefill for faster first token
-- Optimize KV cache allocation
-- Consider speculative decoding
+- Optimize engine configuration for specific use case
 
-### For Memory Efficiency
-- Reduce `free_gpu_memory_fraction` to 0.8 or lower
-- Use INT8 quantization if model supports it
-- Optimize `max_num_tokens` based on typical request sizes
-
-## Custom Configuration
-
-### Creating Custom ConfigMaps
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: trtllm-engine-config-custom
-  namespace: dynamo-cloud
-data:
-  agg.yaml: |
-    tensor_parallel_size: 1
-    max_batch_size: 24        # Custom batch size
-    max_num_tokens: 12288     # Custom token limit
-    trust_remote_code: true
-    backend: pytorch
-    enable_chunked_prefill: true
-    kv_cache_config:
-      free_gpu_memory_fraction: 0.8  # Conservative memory usage
-    cuda_graph_config:
-      max_batch_size: 24
-```
-
-Apply and use:
-```bash
-kubectl apply -f custom-config.yaml
-kubectl patch dynamographdeployment trtllm -n dynamo-cloud --type='merge' -p='
-spec:
-  services:
-    TRTLLMWorker:
-      extraPodSpec:
-        volumes:
-        - name: engine-config-volume
-          configMap:
-            name: trtllm-engine-config-custom'
-```
+### For Concurrent Requests
+- Use `trtllm-disaggregated-default` architecture
+- Scale prefill and decode workers independently
+- Monitor cache transceiver performance
 
 ## External Access
 
 For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments.
 
 **TensorRT-LLM-Specific Notes:**
-- Use NLB (Network Load Balancer) to minimize latency and maximize TensorRT optimizations
-- Consider `target-type: ip` for optimal performance
-- See root README.md for complete setup instructions
+- Use Network Load Balancer (NLB) to minimize latency
+- Consider `target-type: ip` for optimal TensorRT performance
 
 ## Cleanup
 
 ```bash
-# Remove TensorRT-LLM deployment
-kubectl delete dynamographdeployment trtllm -n dynamo-cloud
-
-# Remove ConfigMaps
-kubectl delete configmap trtllm-engine-config-default trtllm-engine-config-high-performance -n dynamo-cloud
+# Remove deployment
+kubectl delete dynamographdeployment trtllm-aggregated-default -n dynamo-cloud
+# or
+kubectl delete dynamographdeployment trtllm-aggregated-high-performance -n dynamo-cloud
+# or  
+kubectl delete dynamographdeployment trtllm-disaggregated-default -n dynamo-cloud
 ```
+
+## Troubleshooting
+
+### Common Issues
+
+**NGC Authentication Failures:**
+```bash
+# Check NGC secret exists
+kubectl get secret ngc-secret -n dynamo-cloud
+
+# Check pod events for ImagePullBackOff
+kubectl describe pod <trtllm-worker-pod> -n dynamo-cloud
+```
+
+**Model Loading Issues:**
+```bash
+# Check HuggingFace token
+kubectl get secret hf-token-secret -n dynamo-cloud
+
+# Monitor model download progress
+kubectl logs <trtllm-worker-pod> -n dynamo-cloud -f | grep -i "download\|loading"
+```
+
+**Performance Issues:**
+```bash
+# Check GPU memory utilization
+kubectl exec <trtllm-worker-pod> -n dynamo-cloud -- nvidia-smi
+
+# Review engine configuration in logs
+kubectl logs <trtllm-worker-pod> -n dynamo-cloud | grep -i "config\|batch\|memory"
+```
+
+**Disaggregated Communication Issues:**
+```bash
+# Check cache transceiver status
+kubectl logs -n dynamo-cloud -l componentType=worker -f | grep -i "transceiver\|cache"
+
+# Verify both workers are healthy
+kubectl get pods -n dynamo-cloud -l app=trtllm-disaggregated-default -o wide
+```
+
+## References
+
+- [TensorRT-LLM Documentation](https://github.com/NVIDIA/TensorRT-LLM)
+- [NGC Container Registry](https://catalog.ngc.nvidia.com/)
+- [NVIDIA Dynamo Documentation](https://docs.nvidia.com/dynamo/)
+- [CUDA Graphs Documentation](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#cuda-graphs)
