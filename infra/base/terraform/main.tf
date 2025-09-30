@@ -72,7 +72,7 @@ resource "aws_cloudformation_stack" "guidance_deployment_metrics" {
   template_body = <<STACK
     {
         "AWSTemplateFormatVersion": "2010-09-09",
-        "Description": "${var.solution_description} (${var.solution_id})",
+        "Description": "(${var.solution_id}) ${var.solution_description}",
         "Resources": {
             "EmptyResource": {
                 "Type": "AWS::CloudFormation::WaitConditionHandle"
