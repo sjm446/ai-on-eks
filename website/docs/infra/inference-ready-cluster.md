@@ -68,12 +68,7 @@ This infrastructure deploys the following AWS resources:
 
 ### EKS Add-ons
 
--
-    *
-
-*[AWS Load Balancer Controller](https://aws.amazon.com/blogs/networking-and-content-delivery/deploying-aws-load-balancer-controller-on-amazon-eks/)
-** for ingress management
-
+- **[AWS Load Balancer Controller](https://aws.amazon.com/blogs/networking-and-content-delivery/deploying-aws-load-balancer-controller-on-amazon-eks/)** for ingress management
 - **EBS CSI Driver** for persistent storage
 - **VPC CNI** for pod networking
 - **CoreDNS** for service discovery
