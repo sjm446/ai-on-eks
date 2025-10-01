@@ -7,7 +7,7 @@ sidebar_label: Inference Charts
 The AI on EKS Inference Charts provide a streamlined Helm-based approach to deploy AI/ML inference workloads on both GPU and AWS Neuron (Inferentia/Trainium) hardware. This chart supports multiple deployment configurations and comes with pre-configured values for popular models.
 
 :::info Advanced Usage
-For detailed configuration options, advanced deployment scenarios, and comprehensive parameter documentation, see the [complete README](https://github.com/awslabs/data-on-eks/blob/main/blueprints/inference/inference-charts/README.md).
+For detailed configuration options, advanced deployment scenarios, and comprehensive parameter documentation, see the [complete README](https://github.com/awslabs/ai-on-eks/blob/main/blueprints/inference/inference-charts/README.md).
 :::
 
 ## Overview
