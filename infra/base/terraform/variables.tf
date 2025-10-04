@@ -398,3 +398,39 @@ variable "kms_key_admin_roles" {
   type        = list(string)
   default     = []
 }
+
+# Enable SOCI snapshotter parallel pull/unpack mode
+variable "enable_soci_snapshotter" {
+  description = "Enable SOCI snapshotter parallel pull/unpack mode"
+  type        = bool
+  default     = false
+}
+
+# SOCI snapshotter root dir bind to instance store
+variable "soci_snapshotter_use_instance_store" {
+  description = <<-EOF
+    When disabled (default) - Configure the EBS volume used by Bottlerocket's container resources to be fully optimized: IOPs: 16K, Throughput: 1000MiB/s
+    When enabled - Configure SOCI snapshotter root dir to bind to ephemeral storage / instance store"
+  EOF
+  type        = bool
+  default     = false
+}
+
+# Configure kernel max_user_namespaces
+variable "max_user_namespaces" {
+  description = "Configure kernel max_user_namespaces"
+  type        = number
+  default     = 0
+}
+
+# Configure Karpenter NodePool AMI Family
+variable "ami_family" {
+  description = "Configure the AMI family to be used with Karpenter NodePools"
+  type        = string
+  default     = "bottlerocket"
+
+  validation {
+    condition     = var.ami_family == "bottlerocket" || var.ami_family == "al2023"
+    error_message = "The ami_family must be set to either \"bottlerocket\" or \"al2023\"."
+  }
+}
