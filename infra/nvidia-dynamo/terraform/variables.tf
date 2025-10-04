@@ -22,6 +22,18 @@ variable "capacity_block_reservation_id" {
   type        = string
 }
 
+variable "solution_description" {
+  description = "Description of the solution"
+  default     = null
+  type        = string
+}
+
+variable "solution_id" {
+  description = "ID of the solution"
+  default     = null
+  type        = string
+}
+
 # VPC with configurable AZs - CIDR size should match AZ count
 variable "vpc_cidr" {
   description = "VPC CIDR. This should be a valid private (RFC 1918) CIDR range. Recommended: /21 for 2 AZs, /20 for 3 AZs, /19 for 4 AZs. If the network prefix is not provided, it will be computed"
@@ -239,6 +251,12 @@ variable "aibrix_stack_version" {
   default     = "v0.2.1"
 }
 
+variable "enable_leader_worker_set" {
+  description = "Flag to enable the LeaderWorkerSet"
+  type        = bool
+  default     = false
+}
+
 # Enable NVIDIA DRA Driver addon
 variable "enable_nvidia_dra_driver" {
   description = "Enable NVIDIA DRA Driver addon"
@@ -393,4 +411,40 @@ variable "dynamo_stack_version" {
   description = "Dynamo default version"
   type        = string
   default     = "v0.3.0"
+}
+
+# Enable SOCI snapshotter parallel pull/unpack mode
+variable "enable_soci_snapshotter" {
+  description = "Enable SOCI snapshotter parallel pull/unpack mode"
+  type        = bool
+  default     = false
+}
+
+# SOCI snapshotter root dir bind to instance store
+variable "soci_snapshotter_use_instance_store" {
+  description = <<-EOF
+    When disabled (default) - Configure the EBS volume used by Bottlerocket's container resources to be fully optimized: IOPs: 16K, Throughput: 1000MiB/s
+    When enabled - Configure SOCI snapshotter root dir to bind to ephemeral storage / instance store"
+  EOF
+  type        = bool
+  default     = false
+}
+
+# Configure kernel max_user_namespaces
+variable "max_user_namespaces" {
+  description = "Configure kernel max_user_namespaces"
+  type        = number
+  default     = 0
+}
+
+# Configure Karpenter NodePool AMI Family
+variable "ami_family" {
+  description = "Configure the AMI family to be used with Karpenter NodePools"
+  type        = string
+  default     = "bottlerocket"
+
+  validation {
+    condition     = var.ami_family == "bottlerocket" || var.ami_family == "al2023"
+    error_message = "The ami_family must be set to either \"bottlerocket\" or \"al2023\"."
+  }
 }
