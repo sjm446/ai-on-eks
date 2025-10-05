@@ -28,7 +28,7 @@ spec:
         timeoutSeconds: 30
         failureThreshold: 10
       dynamoNamespace: multi-replica-vllm
-      componentType: main
+      componentType: frontend
       replicas: 1
       resources:
         requests:
@@ -37,12 +37,9 @@ spec:
         limits:
           cpu: "1"
           memory: "2Gi"
-      envs:
-        - name: DYN_LOG
-          value: "debug"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.5.0
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh
@@ -77,15 +74,6 @@ spec:
           cpu: "8"
           memory: "16Gi"
           gpu: "1"
-      envs:
-        - name: DYN_SYSTEM_ENABLED
-          value: "true"
-        - name: DYN_SYSTEM_USE_ENDPOINT_HEALTH_STATUS
-          value: "[\"generate\"]"
-        - name: DYN_SYSTEM_PORT
-          value: "9090"
-        - name: DYN_LOG
-          value: "debug"
       extraPodSpec:
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
@@ -96,7 +84,7 @@ spec:
               port: 9090
             periodSeconds: 10
             failureThreshold: 60
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.5.0
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh
@@ -131,15 +119,6 @@ spec:
           cpu: "8"
           memory: "16Gi"
           gpu: "1"
-      envs:
-        - name: DYN_SYSTEM_ENABLED
-          value: "true"
-        - name: DYN_SYSTEM_USE_ENDPOINT_HEALTH_STATUS
-          value: "[\"generate\"]"
-        - name: DYN_SYSTEM_PORT
-          value: "9090"
-        - name: DYN_LOG
-          value: "debug"
       extraPodSpec:
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
@@ -150,7 +129,7 @@ spec:
               port: 9090
             periodSeconds: 10
             failureThreshold: 60
-          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.5.0
           workingDir: /workspace/components/backends/vllm
           command:
             - /bin/sh

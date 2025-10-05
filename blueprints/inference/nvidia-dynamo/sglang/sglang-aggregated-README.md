@@ -1,6 +1,6 @@
 # SGLang Example
 
-Deploy SGLang-based LLM serving with advanced RadixAttention caching using NVIDIA Dynamo v0.4.1.
+Deploy SGLang-based LLM serving with advanced RadixAttention caching using NVIDIA Dynamo v0.5.0.
 
 ## Architecture
 
@@ -53,7 +53,7 @@ Frontend:
     nodeSelector:
       karpenter.sh/nodepool: cpu-karpenter  # CPU-only node
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
+      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.5.0
       workingDir: /workspace/components/backends/sglang
       args:
         # Clear namespace for clean startup
@@ -85,7 +85,7 @@ SGLangWorker:
       operator: Exists
       effect: NoSchedule
     mainContainer:
-      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
+      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.5.0
       workingDir: /workspace/components/backends/sglang
       args:
         - "python3"

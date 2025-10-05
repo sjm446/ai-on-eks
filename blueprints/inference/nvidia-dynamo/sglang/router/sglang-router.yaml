@@ -10,7 +10,7 @@ spec:
   services:
     Frontend:
       dynamoNamespace: sglang-router
-      componentType: main
+      componentType: frontend
       replicas: 1
       livenessProbe:
         httpGet:
@@ -37,12 +37,9 @@ spec:
         limits:
           cpu: "2"
           memory: "4Gi"
-      envs:
-        - name: DYN_LOG
-          value: "debug"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.5.0
           workingDir: /workspace/components/backends/sglang
           command:
             - /bin/sh
@@ -77,13 +74,6 @@ spec:
           cpu: "6"
           memory: "16Gi"
           gpu: "1"
-      envs:
-        - name: DYN_SYSTEM_ENABLED
-          value: "true"
-        - name: DYN_SYSTEM_USE_ENDPOINT_HEALTH_STATUS
-          value: "[\"generate\"]"
-        - name: DYN_SYSTEM_PORT
-          value: "9090"
       extraPodSpec:
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
@@ -94,7 +84,7 @@ spec:
               port: 9090
             periodSeconds: 10
             failureThreshold: 60
-          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:0.5.0
           workingDir: /workspace/components/backends/sglang
           command:
             - /bin/sh

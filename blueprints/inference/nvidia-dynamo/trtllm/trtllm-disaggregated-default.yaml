@@ -28,7 +28,7 @@ spec:
         timeoutSeconds: 30
         failureThreshold: 10
       dynamoNamespace: trtllm-disaggregated-default
-      componentType: main
+      componentType: frontend
       replicas: 1
       resources:
         requests:
@@ -39,7 +39,7 @@ spec:
           memory: "4Gi"
       extraPodSpec:
         mainContainer:
-          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.5.0
           workingDir: /workspace/components/backends/trtllm
           command:
             - /bin/sh
@@ -74,16 +74,7 @@ spec:
           cpu: "8"
           memory: "20Gi"
           gpu: "1"
-      envs:
-        - name: DYN_SYSTEM_ENABLED
-          value: "true"
-        - name: DYN_SYSTEM_USE_ENDPOINT_HEALTH_STATUS
-          value: "[\"generate\"]"
-        - name: DYN_SYSTEM_PORT
-          value: "9090"
       extraPodSpec:
-        imagePullSecrets:
-          - name: ngc-secret
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
         tolerations:
@@ -98,7 +89,7 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 120
-          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.5.0
           workingDir: /workspace/components/backends/trtllm
           command:
             - /bin/sh
@@ -158,16 +149,7 @@ spec:
           cpu: "8"
           memory: "20Gi"
           gpu: "1"
-      envs:
-        - name: DYN_SYSTEM_ENABLED
-          value: "true"
-        - name: DYN_SYSTEM_USE_ENDPOINT_HEALTH_STATUS
-          value: "[\"generate\"]"
-        - name: DYN_SYSTEM_PORT
-          value: "9090"
       extraPodSpec:
-        imagePullSecrets:
-          - name: ngc-secret
         nodeSelector:
           karpenter.sh/nodepool: g5-gpu-karpenter
         tolerations:
@@ -182,7 +164,7 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 120
-          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.4.1
+          image: nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.5.0
           workingDir: /workspace/components/backends/trtllm
           command:
             - /bin/sh

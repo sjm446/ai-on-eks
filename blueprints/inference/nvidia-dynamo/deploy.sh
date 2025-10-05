@@ -106,13 +106,13 @@ AVAILABLE_EXAMPLES=(
     "vllm-disaggregated-default:vLLM disaggregated serving with default settings (separate prefill/decode workers)"
     "sglang-aggregated-default:SGLang aggregated serving with advanced caching (small models)"
     "sglang-disaggregated-default:SGLang disaggregated serving with RadixAttention (small models)"
-    "trtllm-aggregated-default:TensorRT-LLM aggregated inference with default settings (requires NGC authentication)"
-    "trtllm-aggregated-high-performance:TensorRT-LLM aggregated optimized for maximum throughput (requires NGC authentication)"
-    "trtllm-disaggregated-default:TensorRT-LLM disaggregated serving with default settings (requires NGC authentication)"
+    "trtllm-aggregated-default:TensorRT-LLM aggregated inference with default settings"
+    "trtllm-aggregated-high-performance:TensorRT-LLM aggregated optimized for maximum throughput"
+    "trtllm-disaggregated-default:TensorRT-LLM disaggregated serving with default settings"
     "multi-replica-vllm:Multi-replica vLLM deployment with KV routing and high availability"
     "vllm-router:vLLM with KV-aware routing for cache optimization"
-    "sglang-router:SGLang with KV-aware routing for cache optimization" 
-    "trtllm-router:TensorRT-LLM with KV-aware routing for cache optimization (requires NGC authentication)"
+    "sglang-router:SGLang with KV-aware routing for cache optimization"
+    "trtllm-router:TensorRT-LLM with KV-aware routing for cache optimization"
 )
 
 #---------------------------------------------------------------
@@ -178,25 +178,25 @@ get_example_path() {
     local example="$1"
     case "$example" in
         "vllm-aggregated-default")
-            echo "vllm/aggregated/default"
+            echo "vllm"
             ;;
         "vllm-disaggregated-default")
-            echo "vllm/disaggregated/default"
+            echo "vllm"
             ;;
         "sglang-aggregated-default")
-            echo "sglang/aggregated/default"
+            echo "sglang"
             ;;
         "sglang-disaggregated-default")
-            echo "sglang/disaggregated/default"
+            echo "sglang"
             ;;
         "trtllm-aggregated-default")
-            echo "trtllm/aggregated/default"
+            echo "trtllm"
             ;;
         "trtllm-aggregated-high-performance")
-            echo "trtllm/aggregated/high-performance"
+            echo "trtllm"
             ;;
         "trtllm-disaggregated-default")
-            echo "trtllm/disaggregated/default"
+            echo "trtllm"
             ;;
         "vllm-router")
             echo "vllm/router"
@@ -330,67 +330,9 @@ if [[ "$EXAMPLE" != "hello-world" ]]; then
     fi
 fi
 
-# Check for NGC token secret (for TensorRT-LLM examples)
-if [[ "$EXAMPLE" =~ ^trtllm ]]; then
-    if ! kubectl get secret ngc-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
-        warn "NGC (NVIDIA GPU Cloud) token secret not found"
-        warn "TensorRT-LLM examples require NGC authentication to pull container images"
-        warn ""
-
-        # Check for NGC_API_KEY environment variable first
-        if [ -n "${NGC_API_KEY:-}" ]; then
-            info "Found NGC_API_KEY environment variable, creating secret..."
-            if kubectl create secret docker-registry ngc-secret \
-                --docker-server=nvcr.io \
-                --docker-username='$oauthtoken' \
-                --docker-password="${NGC_API_KEY}" \
-                -n "${NAMESPACE}"; then
-                success "NGC token secret created from environment variable"
-            else
-                error "Failed to create NGC token secret"
-                exit 1
-            fi
-        else
-            warn "NGC API Key is required for TensorRT-LLM container access."
-            warn ""
-            warn "To obtain an NGC API Key:"
-            warn "  1. Register at https://ngc.nvidia.com"
-            warn "  2. Navigate to Setup → Generate API Key"
-            warn "  3. Copy the generated key"
-            warn ""
-            warn "Options:"
-            warn "  1. Set NGC_API_KEY environment variable and re-run this script"
-            warn "  2. Enter API key now to create the secret"
-            warn "  3. Skip (deployment will fail with ImagePullBackOff)"
-            warn ""
-            echo -n "Enter NGC API Key (or press Enter to skip): "
-            read -r ngc_token
-
-            if [ -n "$ngc_token" ]; then
-                info "Creating NGC token secret..."
-                if kubectl create secret docker-registry ngc-secret \
-                    --docker-server=nvcr.io \
-                    --docker-username='$oauthtoken' \
-                    --docker-password="${ngc_token}" \
-                    -n "${NAMESPACE}"; then
-                    success "NGC token secret created"
-                else
-                    error "Failed to create NGC token secret"
-                    exit 1
-                fi
-            else
-                warn "Proceeding without NGC token - TensorRT-LLM deployment will likely fail"
-                warn "To create the secret manually:"
-                warn "  kubectl create secret docker-registry ngc-secret \\"
-                warn "    --docker-server=nvcr.io \\"
-                warn "    --docker-username='\$oauthtoken' \\"
-                warn "    --docker-password=your-ngc-api-key -n ${NAMESPACE}"
-            fi
-        fi
-    else
-        success "NGC token secret found"
-    fi
-fi
+# Note: NGC token secret is NOT required for Dynamo v0.5.0 TensorRT-LLM images
+# The official nvcr.io/nvidia/ai-dynamo/tensorrtllm-runtime:0.5.0 images are publicly accessible
+# Commenting out NGC check as it's not needed for public Dynamo releases
 
 
 

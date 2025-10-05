@@ -1,6 +1,6 @@
 name                = "dynamo-on-eks"
 enable_dynamo_stack = true
-enable_argocd       = true
+# enable_argocd       = true
 # region              = "us-west-2"  # Uncomment to override default
 # eks_cluster_version = "1.33"  # Uncomment to override default
 
@@ -11,7 +11,7 @@ enable_aws_efa_k8s_device_plugin = true  # Required for NVIDIA Dynamo high-perfo
 enable_ai_ml_observability_stack = true
 
 # Dynamo configuration
-dynamo_stack_version = "v0.4.1"
+dynamo_stack_version = "v0.5.0"
 
 # Optional: Uncomment if needed for your use case
 # enable_mlflow_tracking = true
