@@ -91,3 +91,51 @@ module "vpc" {
 
   tags = local.tags
 }
+
+################################################################################
+# VPC Endpoints
+################################################################################
+
+module "vpc_endpoints" {
+  source  = "terraform-aws-modules/vpc/aws//modules/vpc-endpoints"
+  version = "~> 5.21"
+
+  vpc_id = module.vpc.vpc_id
+
+  endpoints = {
+    s3 = {
+      service         = "s3"
+      service_type    = "Gateway"
+      route_table_ids = module.vpc.private_route_table_ids
+      tags = {
+        Name = "${var.name}-s3-vpc-endpoint"
+      }
+    }
+  }
+
+  tags = local.tags
+}
+
+resource "aws_security_group" "vpc_endpoints" {
+  name_prefix = "${var.name}-vpc-endpoints-"
+  description = "Security group for VPC endpoints"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(local.tags, {
+    Name = "${var.name}-vpc-endpoints"
+  })
+}
