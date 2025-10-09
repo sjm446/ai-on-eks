@@ -17,7 +17,7 @@ This directory contains vLLM deployment configurations for the NVIDIA Dynamo pla
 - **Tensor parallelism** across multiple GPUs for better performance
 - **Better for**: Single-user scenarios, lower latency
 
-### Disaggregated Architecture (`vllm-disaggregated-default`)  
+### Disaggregated Architecture (`vllm-disaggregated-default`)
 - **Separate workers** for prefill and decode phases
 - **Better for**: High throughput, concurrent requests, production workloads
 - **Resource usage**: GPUs split between prefill and decode workers
@@ -114,7 +114,7 @@ kubectl get pods -n dynamo-cloud -l app=vllm-aggregated-default
 # Frontend logs
 kubectl logs -n dynamo-cloud -l componentType=main,app=vllm-aggregated-default -f
 
-# Worker logs  
+# Worker logs
 kubectl logs -n dynamo-cloud -l componentType=worker,app=vllm-aggregated-default -f
 ```
 

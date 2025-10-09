@@ -272,7 +272,7 @@ For production external access, see the main README.md **External Access** secti
 kubectl delete dynamographdeployment trtllm-aggregated-default -n dynamo-cloud
 # or
 kubectl delete dynamographdeployment trtllm-aggregated-high-performance -n dynamo-cloud
-# or  
+# or
 kubectl delete dynamographdeployment trtllm-disaggregated-default -n dynamo-cloud
 ```
 

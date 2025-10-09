@@ -724,7 +724,7 @@ kubectl annotate service ${EXAMPLE}-frontend \
   service.beta.kubernetes.io/aws-load-balancer-target-type="ip" \
   -n dynamo-cloud
 
-# Option B: Application Load Balancer (ALB) - More Features  
+# Option B: Application Load Balancer (ALB) - More Features
 kubectl annotate service ${EXAMPLE}-frontend \
   service.beta.kubernetes.io/aws-load-balancer-type="external" \
   service.beta.kubernetes.io/aws-load-balancer-target-type="ip" \
@@ -895,7 +895,7 @@ curl http://<load-balancer-url>/metrics
 - Duplicate metrics collector registration errors
 - Stream routing failures and generation timeouts
 
-**Root Cause**: 
+**Root Cause**:
 Workers read `DYNAMO_NAMESPACE` environment variable, but the Dynamo operator was setting `DYN_NAMESPACE`. This caused all workers to default to the fallback namespace "dynamo", creating cross-contamination.
 
 **Current Workaround Applied**:
@@ -937,11 +937,11 @@ kubectl port-forward svc/sglang-frontend 8002:8000 -n dynamo-cloud &
 # vllm should only show Qwen model
 curl http://localhost:8001/health | jq '.instances[].namespace' | sort -u
 
-# sglang should only show DeepSeek model  
+# sglang should only show DeepSeek model
 curl http://localhost:8002/health | jq '.instances[].namespace' | sort -u
 ```
 
-**Status**: 
+**Status**:
 - ✅ **Fixed in**: vllm, sglang, hello-world deployments
 - ⚠️ **Pending**: Other blueprint deployments may need the same DYNAMO_NAMESPACE fix
 - 🔍 **Under Investigation**: Complete namespace isolation across all deployment types

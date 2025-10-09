@@ -108,17 +108,17 @@ spec:
               backend: pytorch
               enable_chunked_prefill: true
               disable_overlap_scheduler: false
-              
+
               cuda_graph_config:
                 max_batch_size: 16
-              
+
               kv_cache_config:
                 free_gpu_memory_fraction: 0.85
-              
+
               cache_transceiver_config:
                 backend: default
               EOF
-              
+
               # Start TensorRT-LLM decode worker
               python3 -m dynamo.trtllm --model-path Qwen/Qwen3-0.6B --served-model-name Qwen/Qwen3-0.6B --extra-engine-args /tmp/engine_configs/decode.yaml --disaggregation-mode decode --disaggregation-strategy decode_first
     TRTLLMPrefillWorker:

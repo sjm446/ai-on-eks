@@ -68,7 +68,7 @@ cd blueprints/inference/nvidia-dynamo
 - **Frontend**: Higher resource allocation (5 CPU, 10Gi) due to namespace clearing
 
 ### Disaggregated Default
-- **Model**: `deepseek-ai/DeepSeek-R1-Distill-Llama-8B` 
+- **Model**: `deepseek-ai/DeepSeek-R1-Distill-Llama-8B`
 - **Architecture**: SGLangPrefillWorker + SGLangDecodeWorker
 - **Resources**: 1 GPU, 8 CPU, 20Gi RAM per worker
 - **Communication**: NIXL transfer backend for high-speed worker coordination
@@ -89,7 +89,7 @@ cd blueprints/inference/nvidia-dynamo
 ### Disaggregated-Specific Parameters
 ```bash
 --disaggregation-mode prefill     # For prefill worker
---disaggregation-mode decode      # For decode worker  
+--disaggregation-mode decode      # For decode worker
 --disaggregation-transfer-backend nixl  # High-speed communication
 ```
 
@@ -169,7 +169,7 @@ kubectl get pods -n dynamo-cloud -l app=sglang-disaggregated-default
 # Prefill worker logs
 kubectl logs -n dynamo-cloud -l app=sglang-disaggregated-default | grep prefill
 
-# Decode worker logs  
+# Decode worker logs
 kubectl logs -n dynamo-cloud -l app=sglang-disaggregated-default | grep decode
 ```
 

@@ -14,7 +14,7 @@ Client Requests → Frontend (KV Router) → Prefill Workers → Decode Workers
 
 This example demonstrates:
 - **Multiple Worker Replicas**: Independent workers for high availability and load distribution
-- **Disaggregated Serving**: Separate prefill and decode workers per replica  
+- **Disaggregated Serving**: Separate prefill and decode workers per replica
 - **KV-aware Routing**: Intelligent request routing based on cache overlap
 - **NIXL GPU-to-GPU Transfers**: Efficient KV cache transfers between prefill and decode workers
 

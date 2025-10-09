@@ -190,7 +190,7 @@ curl http://localhost:8000/v1/models
 
 For production external access, see the main README.md **External Access** section which provides comprehensive guidance for all Dynamo deployments, including:
 - AWS Load Balancer Controller setup
-- Ingress configurations  
+- Ingress configurations
 - Best practices for target-type and performance optimization
 
 

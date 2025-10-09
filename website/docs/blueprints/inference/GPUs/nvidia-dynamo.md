@@ -415,7 +415,7 @@ enable_ai_ml_observability_stack = true
 ### Common Issues
 
 1. **GPU Nodes Not Available**: Check Karpenter logs and instance availability
-2. **Pod Failures**: Check resource limits and cluster capacity  
+2. **Pod Failures**: Check resource limits and cluster capacity
 3. **Model Download Failures**: Verify HuggingFace token and network connectivity
 4. **API 503 Errors**: Wait for model loading or check worker health
 
@@ -451,7 +451,7 @@ VllmWorker:
     requests:
       gpu: "1"
 
-# Example: Deploy frontend to CPU instances      
+# Example: Deploy frontend to CPU instances
 Frontend:
   extraPodSpec:
     nodeSelector:

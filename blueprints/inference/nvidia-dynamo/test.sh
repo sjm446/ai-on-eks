@@ -331,7 +331,7 @@ case "$EXAMPLE" in
         # Dynamic model selection
         info "Discovering available models..."
         MODELS_RESPONSE=$(curl -s "$MODELS_URL" 2>/dev/null || echo "")
-        
+
         if [ -n "$MODELS_RESPONSE" ] && ! echo "$MODELS_RESPONSE" | grep -q -i "error"; then
             # Extract model names from the response
             AVAILABLE_MODELS=()
@@ -359,7 +359,7 @@ case "$EXAMPLE" in
                     fi
                 fi
             fi
-            
+
             # Fallback: extract from plain text if jq parsing failed
             if [ ${#AVAILABLE_MODELS[@]} -eq 0 ]; then
                 # Try to extract quoted strings (model names)
@@ -390,7 +390,7 @@ case "$EXAMPLE" in
                 # Interactive model selection
                 while true; do
                     read -p "Select a model for testing (1-${#AVAILABLE_MODELS[@]}) or press Enter for first model: " model_selection
-                    
+
                     if [ -z "$model_selection" ]; then
                         # Default to first model if user just presses Enter
                         MODEL_NAME="${AVAILABLE_MODELS[0]}"
@@ -444,7 +444,7 @@ EOF
             if [ -n "$RESPONSE" ]; then
                 echo "Error response:"
                 echo "$RESPONSE" | head -5
-                
+
                 # Check for common instance ID routing issues
                 if echo "$RESPONSE" | grep -q "instance_id.*not found"; then
                     warn "Detected instance ID routing issue - this may indicate:"
@@ -491,13 +491,13 @@ EOF
                 echo ""
                 info "Testing KV routing with shared prefixes..."
                 SHARED_SYSTEM="You are a helpful AI assistant."
-                
+
                 # Clean up any existing test files
                 rm -f /tmp/kv_test_*.json 2>/dev/null
-                
+
                 # Store background job PIDs
                 KV_PIDS=()
-                
+
                 for i in {1..3}; do
                     KV_PAYLOAD=$(cat <<EOF
 {
@@ -519,12 +519,12 @@ EOF
                     ) &
                     KV_PIDS+=($!)
                 done
-                
+
                 # Wait for all requests with timeout
                 info "Waiting for KV routing test requests (max 45 seconds)..."
                 WAIT_COUNT=0
                 MAX_WAIT=45
-                
+
                 while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
                     # Check if all jobs are done
                     JOBS_RUNNING=false
@@ -534,15 +534,15 @@ EOF
                             break
                         fi
                     done
-                    
+
                     if [ "$JOBS_RUNNING" = false ]; then
                         break
                     fi
-                    
+
                     sleep 1
                     WAIT_COUNT=$((WAIT_COUNT + 1))
                 done
-                
+
                 # Kill any remaining jobs if timeout reached
                 if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
                     warn "KV routing test timed out, killing remaining requests..."
@@ -550,11 +550,11 @@ EOF
                         kill "$pid" 2>/dev/null || true
                     done
                 fi
-                
+
                 # Count successful responses
                 success_count=0
                 error_count=0
-                
+
                 for i in {1..3}; do
                     if [ -f "/tmp/kv_test_$i.json" ]; then
                         if ! grep -q "timeout_or_error" "/tmp/kv_test_$i.json" 2>/dev/null; then
@@ -566,7 +566,7 @@ EOF
                         error_count=$((error_count + 1))
                     fi
                 done
-                
+
                 if [ $success_count -eq 3 ]; then
                     success "✓ KV routing test: ${success_count}/3 requests completed successfully"
                 elif [ $success_count -gt 0 ]; then
@@ -574,7 +574,7 @@ EOF
                 else
                     warn "✗ KV routing test: All requests failed or timed out"
                 fi
-                
+
                 # Clean up test files
                 rm -f /tmp/kv_test_*.json 2>/dev/null
                 ;;

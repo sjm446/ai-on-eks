@@ -109,13 +109,13 @@ spec:
               trust_remote_code: true
               backend: pytorch
               enable_chunked_prefill: true
-              
+
               kv_cache_config:
                 free_gpu_memory_fraction: 0.90
-              
+
               cuda_graph_config:
                 max_batch_size: 32
               EOF
-              
+
               # Start TensorRT-LLM worker
               python3 -m dynamo.trtllm --model-path Qwen/Qwen3-0.6B --served-model-name Qwen/Qwen3-0.6B --extra-engine-args /tmp/engine_configs/agg.yaml
