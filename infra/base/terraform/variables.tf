@@ -399,6 +399,19 @@ variable "kms_key_admin_roles" {
   default     = []
 }
 
+# NVIDIA Dynamo Stack Variables
+variable "enable_dynamo_stack" {
+  description = "Enable NVIDIA Dynamo Stack addon"
+  type        = bool
+  default     = false
+}
+
+variable "dynamo_stack_version" {
+  description = "NVIDIA Dynamo Stack version"
+  type        = string
+  default     = "v0.4.0"
+}
+
 # Enable SOCI snapshotter parallel pull/unpack mode
 variable "enable_soci_snapshotter" {
   description = "Enable SOCI snapshotter parallel pull/unpack mode"
