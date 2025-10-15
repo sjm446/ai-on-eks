@@ -248,7 +248,7 @@ variable "enable_aibrix_stack" {
 variable "aibrix_stack_version" {
   description = "AIBrix default version"
   type        = string
-  default     = "v0.2.1"
+  default     = "v0.4.1"
 }
 
 variable "enable_leader_worker_set" {
