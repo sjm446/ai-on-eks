@@ -248,7 +248,7 @@ variable "enable_aibrix_stack" {
 variable "aibrix_stack_version" {
   description = "AIBrix default version"
   type        = string
-  default     = "v0.2.1"
+  default     = "v0.4.1"
 }
 
 variable "enable_leader_worker_set" {
@@ -397,6 +397,19 @@ variable "kms_key_admin_roles" {
   description = "list of role ARNs to add to the KMS policy"
   type        = list(string)
   default     = []
+}
+
+# NVIDIA Dynamo Stack Variables
+variable "enable_dynamo_stack" {
+  description = "Enable NVIDIA Dynamo Stack addon"
+  type        = bool
+  default     = false
+}
+
+variable "dynamo_stack_version" {
+  description = "NVIDIA Dynamo Stack version"
+  type        = string
+  default     = "v0.4.0"
 }
 
 # Enable SOCI snapshotter parallel pull/unpack mode
