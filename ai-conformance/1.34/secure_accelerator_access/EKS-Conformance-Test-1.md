@@ -4,13 +4,13 @@ Deploy a Pod to a node with available accelerators, without requesting accelerat
 Execute a command in the Pod to probe for accelerator devices, and the command should fail or report that no accelerator
 devices are found.
 
-**Step 1**: Create a ResourceClaimTemplate for a single GPU resource ([gpuResourceClaimTemplate.yaml](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-gpuresourceclaimtemplate-yaml))
+**Step 1**: Create a ResourceClaimTemplate for a single GPU resource ([gpuResourceClaimTemplate.yaml](./gpuResourceClaimTemplate.yaml))
 
 ```
 kubectl apply -f gpuResourceClaimTemplate.yaml
 ```
 
-**Step 2**: Create a Deployment that requests the single GPU resource ([gpuDeploymentSinglePod.yaml](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-gpudeploymentsinglepod-yaml))
+**Step 2**: Create a Deployment that requests the single GPU resource ([gpuDeploymentSinglePod.yaml](./gpuDeploymentSinglePod.yaml))
 
 ```
 kubectl apply -f gpuDeploymentSinglePod.yaml

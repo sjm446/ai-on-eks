@@ -8,15 +8,15 @@ Kubernetes resource management framework (device plugin or DRA) and container ru
 or interference between workloads.
 
 ## How to test
-- [Test 1](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-eks-conformance-test-1-md): Deploy a Pod to a node with available accelerators, without requesting accelerator resources in the Pod spec.
+- [Test 1](./EKS-Conformance-Test-1.md): Deploy a Pod to a node with available accelerators, without requesting accelerator resources in the Pod spec.
 Execute a command in the Pod to probe for accelerator devices, and the command should fail or report that no accelerator
 devices are found.
-- [Test 2](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-eks-conformance-test-2-md): Create two Pods, each is allocated an accelerator resource. Execute a command in one Pod to attempt to access
+- [Test 2](./EKS-Conformance-Test-2.md): Create two Pods, each is allocated an accelerator resource. Execute a command in one Pod to attempt to access
 the other Pod’s accelerator, and should be denied.
 
 ## EKS Cluster Setup
 
-**Step 1**: Create an EKS cluster with at least 1 node that has multiple GPUs. ([gpu-cluster.yaml](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-gpu-cluster-yaml))
+**Step 1**: Create an EKS cluster with at least 1 node that has multiple GPUs. ([gpu-cluster.yaml](./gpu-cluster.yaml))
 
 ```
 eksctl create cluster -f gpu-cluster.yaml --install-nvidia-plugin=false
@@ -28,7 +28,7 @@ eksctl create cluster -f gpu-cluster.yaml --install-nvidia-plugin=false
 helm repo add nvidia https://helm.ngc.nvidia.com/nvidia \
     && helm repo update
 ```
-See ([gpu-operator-values.yaml](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-gpu-operator-values-yaml))
+See ([gpu-operator-values.yaml](./gpu-operator-values.yaml))
 ```
 helm install gpu-operator nvidia/gpu-operator \
  --namespace nvidia \
@@ -39,7 +39,7 @@ helm install gpu-operator nvidia/gpu-operator \
 
 **Step 3**: Install NVIDIA DRA driver
 
-See ([gpu-dra-values.yaml](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-gpu-dra-values-yaml))
+See ([gpu-dra-values.yaml](./gpu-dra-values.yaml))
 ```
 helm install nvidia-dra-driver-gpu nvidia/nvidia-dra-driver-gpu \
  --version 25.3.2 \
