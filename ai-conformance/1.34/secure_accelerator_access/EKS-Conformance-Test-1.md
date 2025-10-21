@@ -26,7 +26,7 @@ kubectl get resourceclaims -A
 NAMESPACE   NAME                                         STATE                AGE
 gpu-test1   gpu-deployment-78df9479c4-dw6nb-gpu0-6p5bf   allocated,reserved   33s
 ```
-See [gpu-deployment-78df9479c4-dw6nb-gpu0-6p5bf](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-gpu-deployment-78df9479c4-dw6nb-gpu0-6p5bf) file for output
+See [gpu-deployment-78df9479c4-dw6nb-gpu0-6p5bf](./gpu-deployment-78df9479c4-dw6nb-gpu0-6p5bf) file for output
 ```
 kubectl get resourceclaim -n gpu-test1 gpu-deployment-78df9479c4-dw6nb-gpu0-6p5bf -o yaml
 ```
@@ -38,8 +38,8 @@ kubectl -n gpu-test1 delete deployment gpu-deployment
 ```
 
 **Step 5**: Remove the resource claim from the Deployment
+Comment out the `spec.containers.resources` from [gpuDeploymentSinglePod.yaml](./gpuDeploymentSinglePod.yaml)
 
-Comment out the `spec.containers.resources` from [gpuDeploymentSinglePod.yaml](https://gist.github.com/csplinter/eeae9a1470f27b1be4d69118e199cebd#file-gpudeploymentsinglepod-yaml)
 
 ```
 ...
