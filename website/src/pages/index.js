@@ -66,13 +66,12 @@ function HomepageHeader() {
                         "paddingBottom": "calc(40.25% + 25px)",
                         "width": "100%",
                         "maxWidth": "1280px",
-                        // "height": "0",
                         "transform": "scale(1)",
                         "margin": "0 auto"
                     }}
                 >
                     <iframe loading="lazy" className="sl-demo"
-                        src="https://app.storylane.io/demo/81ayglmaakhh?embed=inline" name="sl-embed"
+                        src="https://app.storylane.io/demo/uybpeyefbrgn?embed=inline" name="sl-embed"
                         allow="fullscreen"
                         allowFullScreen
                         style={{
